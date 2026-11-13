@@ -1,9 +1,11 @@
 /**
- * TaskFlow Desktop - Core Data Models & IPC Types
+ * TaskFlow - Core Data Models & IPC Types
  * Local-First Desktop Task Management Application
  */
 
 export type UserRole = 'owner' | 'admin' | 'member';
+
+export type EmailPrivacyLevel = 'public' | 'team_only' | 'hidden';
 
 export interface User {
   id: string;
@@ -11,8 +13,19 @@ export interface User {
   email: string;
   passwordHash: string;
   avatar?: string;
+  avatarPreset?: string; // Predefined avatar emoji/icon (e.g., '🚀', '⚡', '👑')
   recoveryKey: string;
   title?: string;
+  bio?: string;
+  status?: 'active' | 'inactive';
+  isSuperAdmin?: boolean;
+  emailPrivacy?: EmailPrivacyLevel; // 'public' | 'team_only' | 'hidden'
+  notificationSettings?: {
+    emailNotifications: boolean;
+    assignmentAlerts: boolean;
+    deadlineAlerts: boolean;
+    desktopAlerts: boolean;
+  };
   createdAt: string;
 }
 
@@ -33,6 +46,7 @@ export interface Organization {
   logo?: string;
   description: string;
   inviteCode: string;
+  status?: 'active' | 'inactive'; // Active / suspended by SuperAdmin
   members: OrganizationMember[];
   settings: OrganizationSettings;
   createdAt: string;
@@ -55,7 +69,15 @@ export interface Project {
   createdAt: string;
 }
 
-export type TaskStatus = 'todo' | 'in_progress' | 'in_review' | 'blocked' | 'completed';
+export type TaskStatus =
+  | 'todo'
+  | 'in_progress'
+  | 'on_hold'
+  | 'in_review'
+  | 'changes_requested'
+  | 'ready_for_deployment'
+  | 'completed'
+  | 'cancelled';
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 export interface TaskAttachment {
@@ -66,6 +88,14 @@ export interface TaskAttachment {
   url: string; // Base64 data URL or local filepath in storage
   uploadedAt: string;
   uploadedBy: string;
+  commentId?: string; // Mapped to a specific discussion message/comment
+  messageTag?: string; // Custom label or message reference
+}
+
+export interface TaskChecklistItem {
+  id: string;
+  text: string;
+  completed: boolean;
 }
 
 export interface Task {
@@ -82,11 +112,17 @@ export interface Task {
   dueDate: string;
   labels: string[];
   attachments: TaskAttachment[];
+  checklists?: TaskChecklistItem[];
   estimatedTime?: string;
   remindersEnabled: boolean;
   isArchived: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface CommentReaction {
+  emoji: string;
+  userIds: string[];
 }
 
 export interface Comment {
@@ -96,6 +132,9 @@ export interface Comment {
   content: string;
   parentId?: string; // For threaded replies
   attachments?: { name: string; url: string; size?: number }[];
+  reactions?: CommentReaction[];
+  isEdited?: boolean;
+  isDeleted?: boolean;
   createdAt: string;
   updatedAt?: string;
 }
@@ -148,7 +187,8 @@ export interface AppNotification {
 
 export interface UserPreferences {
   theme: 'dark' | 'light' | 'system';
-  accentColor: string; // e.g. '#5b8def'
+  accentColor: string; // e.g. '#0080fa'
+  desktopNotificationsEnabled?: boolean;
   hourlyRemindersEnabled: boolean;
   reminderIntervalMinutes: number;
   quietHoursEnabled: boolean;
@@ -184,4 +224,16 @@ export type NavigationTab =
   | 'overdue'
   | 'projects'
   | 'members'
-  | 'settings';
+  | 'logs'
+  | 'admin'
+  | 'settings'
+  | 'create_task';
+
+export interface AppUpdateInfo {
+  currentVersion: string;
+  latestVersion: string;
+  hasUpdate: boolean;
+  releaseNotes: string;
+  downloadUrl: string;
+  publishedAt?: string;
+}

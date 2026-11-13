@@ -15,14 +15,19 @@ import {
   ArrowUpDown,
   MoreHorizontal,
   AlertTriangle,
+  X,
+  FolderKanban,
 } from 'lucide-react';
 
-const COLUMNS: { id: TaskStatus; label: string; accentColor: string }[] = [
-  { id: 'todo', label: 'To Do', accentColor: 'border-slate-400' },
-  { id: 'in_progress', label: 'In Progress', accentColor: 'border-blue-500' },
-  { id: 'in_review', label: 'In Review', accentColor: 'border-amber-500' },
-  { id: 'blocked', label: 'Blocked', accentColor: 'border-rose-500' },
-  { id: 'completed', label: 'Completed', accentColor: 'border-emerald-500' },
+const COLUMNS: { id: TaskStatus; label: string; accentColor: string; dotColor: string }[] = [
+  { id: 'todo', label: 'To Do', accentColor: 'border-slate-400', dotColor: 'bg-slate-400' },
+  { id: 'in_progress', label: 'In Progress', accentColor: 'border-blue-500', dotColor: 'bg-blue-500' },
+  { id: 'on_hold', label: 'On Hold', accentColor: 'border-amber-500', dotColor: 'bg-amber-500' },
+  { id: 'in_review', label: 'Ready for Review', accentColor: 'border-purple-500', dotColor: 'bg-purple-500' },
+  { id: 'changes_requested', label: 'Changes Requested', accentColor: 'border-rose-500', dotColor: 'bg-rose-500' },
+  { id: 'ready_for_deployment', label: 'Ready for Deployment', accentColor: 'border-cyan-500', dotColor: 'bg-cyan-500' },
+  { id: 'completed', label: 'Completed', accentColor: 'border-emerald-500', dotColor: 'bg-emerald-500' },
+  { id: 'cancelled', label: 'Cancelled', accentColor: 'border-slate-600', dotColor: 'bg-slate-500' },
 ];
 
 export const TaskBoardView: React.FC = () => {
@@ -31,6 +36,8 @@ export const TaskBoardView: React.FC = () => {
     updateTaskStatus,
     currentOrgId,
     selectedProjectId,
+    selectProject,
+    setEditingProject,
     projects,
     users,
     setActiveTaskId,
@@ -94,8 +101,62 @@ export const TaskBoardView: React.FC = () => {
     tasks.some((t) => t.organizationId === currentOrgId && t.assignedTo.includes(u.id))
   );
 
+  const formatHumanDueDate = (dateStr?: string) => {
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const target = new Date(d);
+    target.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Tomorrow';
+    if (diffDays === -1) return 'Yesterday';
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  };
+
+  const activeProject = projects.find((p) => p.id === selectedProjectId);
+
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden select-none">
+      {/* Active Project Banner */}
+      {activeProject && (
+        <div className="px-6 py-2.5 bg-blue-500/10 dark:bg-blue-500/15 border-b border-blue-500/20 flex items-center justify-between gap-3 text-xs shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span
+              className="w-3 h-3 rounded-full shrink-0 shadow-xs"
+              style={{ backgroundColor: activeProject.color || '#0080fa' }}
+            />
+            <span className="font-bold text-slate-900 dark:text-slate-100">{activeProject.name}</span>
+            {activeProject.description && (
+              <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-xs hidden sm:inline">
+                — {activeProject.description}
+              </span>
+            )}
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-600 dark:text-blue-400 font-semibold">
+              {orgTasks.length} {orgTasks.length === 1 ? 'task' : 'tasks'}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setEditingProject(activeProject)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs shadow-xs transition-colors cursor-pointer"
+            >
+              <FolderKanban className="w-3.5 h-3.5" />
+              <span>Project Details</span>
+            </button>
+            <button
+              onClick={() => selectProject(null)}
+              title="Clear Project Filter"
+              className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Control Strip & Filters */}
       <div className="px-6 py-3 border-b border-black/5 dark:border-white/5 flex flex-wrap items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-2 flex-1 max-w-sm">
@@ -141,7 +202,7 @@ export const TaskBoardView: React.FC = () => {
 
           <button
             onClick={() => setCreateTaskOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-xs transition-colors whitespace-nowrap"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-xs transition-colors whitespace-nowrap"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Add Task</span>
@@ -155,7 +216,21 @@ export const TaskBoardView: React.FC = () => {
           const colTasks = orgTasks.filter((t) => t.status === col.id);
           const isOver = activeDropColumn === col.id;
 
-          return (
+          const formatHumanDueDate = (dateStr?: string) => {
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const target = new Date(d);
+    target.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Tomorrow';
+    if (diffDays === -1) return 'Yesterday';
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  };
+
+  return (
             <div
               key={col.id}
               onDragOver={(e) => handleDragOver(e, col.id)}
@@ -163,7 +238,7 @@ export const TaskBoardView: React.FC = () => {
               onDrop={(e) => handleDrop(e, col.id)}
               className={`w-72 shrink-0 flex flex-col rounded-2xl glass-panel-subtle transition-all duration-150 ${
                 isOver
-                  ? 'ring-2 ring-indigo-500/60 bg-indigo-500/5'
+                  ? 'ring-2 ring-blue-500/60 bg-blue-500/5'
                   : 'border border-black/5 dark:border-white/5'
               }`}
             >
@@ -198,13 +273,27 @@ export const TaskBoardView: React.FC = () => {
                     task.status !== 'completed' &&
                     new Date(task.dueDate).getTime() < Date.now();
 
-                  return (
+                  const formatHumanDueDate = (dateStr?: string) => {
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const target = new Date(d);
+    target.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Tomorrow';
+    if (diffDays === -1) return 'Yesterday';
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  };
+
+  return (
                     <div
                       key={task.id}
                       draggable
                       onDragStart={(e) => handleDragStart(e, task.id)}
                       onClick={() => setActiveTaskId(task.id)}
-                      className={`group p-3 rounded-xl glass-panel bg-white/70 dark:bg-slate-900/70 border border-black/5 dark:border-white/10 hover:border-indigo-500/30 dark:hover:border-indigo-500/30 shadow-xs hover:shadow-md cursor-grab active:cursor-grabbing transition-all text-xs space-y-2.5 ${
+                      className={`group p-3 rounded-xl glass-panel bg-white/70 dark:bg-slate-900/70 border border-black/5 dark:border-white/10 hover:border-blue-500/30 dark:hover:border-blue-500/30 shadow-xs hover:shadow-md cursor-grab active:cursor-grabbing transition-all text-xs space-y-2.5 ${
                         isDragging ? 'opacity-40 scale-95' : 'opacity-100'
                       }`}
                     >
@@ -225,7 +314,7 @@ export const TaskBoardView: React.FC = () => {
                       </div>
 
                       {/* Title */}
-                      <h4 className="font-semibold text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors leading-snug line-clamp-2">
+                      <h4 className="font-semibold text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-snug line-clamp-2">
                         {task.title}
                       </h4>
 
@@ -255,7 +344,7 @@ export const TaskBoardView: React.FC = () => {
                             >
                               {isOverdue && <AlertTriangle className="w-3 h-3 text-rose-500 shrink-0" />}
                               <Calendar className="w-3 h-3 shrink-0" />
-                              <span>{new Date(task.dueDate).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
+                              <span>{formatHumanDueDate(task.dueDate)}</span>
                             </div>
                           )}
 
@@ -268,7 +357,7 @@ export const TaskBoardView: React.FC = () => {
 
                           {task.remindersEnabled && (
                             <span title="Hourly Reminder Active">
-                              <Clock className="w-3 h-3 text-indigo-400" />
+                              <Clock className="w-3 h-3 text-blue-400" />
                             </span>
                           )}
                         </div>
@@ -280,6 +369,7 @@ export const TaskBoardView: React.FC = () => {
                               key={u.id}
                               name={u.name}
                               avatarUrl={u.avatar}
+                              avatarPreset={u.avatarPreset}
                               size="xs"
                             />
                           ))}
@@ -290,8 +380,8 @@ export const TaskBoardView: React.FC = () => {
                 })}
 
                 {colTasks.length === 0 && (
-                  <div className="h-24 flex items-center justify-center text-[11px] text-slate-400 italic">
-                    Drop tasks here
+                  <div className="h-24 flex items-center justify-center text-[11px] text-slate-400/60 font-medium">
+                    No tasks
                   </div>
                 )}
               </div>

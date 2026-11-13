@@ -34,7 +34,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   system: {
     platform: process.platform as 'darwin' | 'win32' | 'linux',
-    appVersion: '1.2.0-desktop',
+    appVersion: '1.0.1-desktop',
     userDataPath: '',
+  },
+  updater: {
+    check: () => ipcRenderer.invoke('updater:check'),
+    downloadAndInstall: (url: string) => ipcRenderer.invoke('updater:downloadAndInstall', url),
   },
 });

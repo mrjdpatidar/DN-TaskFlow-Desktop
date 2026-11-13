@@ -1,6 +1,6 @@
 {
-  "name": "TaskFlow Desktop",
-  "description": "Modern Apple Liquid Glass desktop task management application with local JSON storage, organizations, projects, Kanban board, collaboration, and hourly reminders.",
+  "name": "DN TaskFlow",
+  "description": "DN TaskFlow - Modern Desktop Task & Workspace Platform with local JSON persistence, Kanban boards, projects, and hourly reminders.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": []
 }

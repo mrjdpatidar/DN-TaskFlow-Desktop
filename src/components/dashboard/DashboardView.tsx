@@ -24,6 +24,7 @@ export const DashboardView: React.FC = () => {
     comments,
     activities,
     users,
+    organizations,
     currentOrgId,
     currentUserId,
     setActiveTaskId,
@@ -31,13 +32,46 @@ export const DashboardView: React.FC = () => {
     selectProject,
   } = useTaskFlowStore();
 
+  const currentOrg = organizations.find((o) => o.id === currentOrgId);
+  const currentMember = currentOrg?.members?.find((m) => m.userId === currentUserId);
+  const currentUser = users.find((u) => u.id === currentUserId);
+  const isOrgAdminOrOwner = currentMember?.role === 'owner' || currentMember?.role === 'admin' || currentUser?.isSuperAdmin;
+
   const orgTasks = tasks.filter((t) => t.organizationId === currentOrgId && !t.isArchived);
-  const orgProjects = projects.filter((p) => p.organizationId === currentOrgId);
-  const orgActivities = activities.filter((a) => a.organizationId === currentOrgId).slice(0, 8);
-  const orgComments = comments.filter((c) => {
-    const t = tasks.find((tk) => tk.id === c.taskId);
-    return t && t.organizationId === currentOrgId;
-  }).slice(0, 5);
+
+  // Filter projects by RBAC
+  const orgProjects = projects.filter((p) => {
+    if (p.organizationId !== currentOrgId) return false;
+    if (isOrgAdminOrOwner) return true;
+    return (
+      p.ownerId === currentUserId ||
+      (p.memberIds && p.memberIds.includes(currentUserId || '')) ||
+      orgTasks.some((t) => t.projectId === p.id && t.assignedTo.includes(currentUserId || ''))
+    );
+  });
+
+  const myAssignedTaskIds = new Set(
+    orgTasks.filter((t) => t.assignedTo.includes(currentUserId || '') || t.creatorId === currentUserId).map((t) => t.id)
+  );
+
+  // Filter activities by RBAC
+  const orgActivities = activities
+    .filter((a) => {
+      if (a.organizationId !== currentOrgId) return false;
+      if (isOrgAdminOrOwner) return true;
+      return a.userId === currentUserId || (a.taskId && myAssignedTaskIds.has(a.taskId));
+    })
+    .slice(0, 8);
+
+  // Filter comments by RBAC
+  const orgComments = comments
+    .filter((c) => {
+      const t = tasks.find((tk) => tk.id === c.taskId);
+      if (!t || t.organizationId !== currentOrgId) return false;
+      if (isOrgAdminOrOwner) return true;
+      return t.assignedTo.includes(currentUserId || '') || t.creatorId === currentUserId || c.userId === currentUserId;
+    })
+    .slice(0, 5);
 
   // Key Metrics
   const totalTasks = orgTasks.length;
@@ -57,9 +91,12 @@ export const DashboardView: React.FC = () => {
   const statusCounts = {
     todo: orgTasks.filter((t) => t.status === 'todo').length,
     in_progress: orgTasks.filter((t) => t.status === 'in_progress').length,
+    on_hold: orgTasks.filter((t) => t.status === 'on_hold').length,
     in_review: orgTasks.filter((t) => t.status === 'in_review').length,
-    blocked: orgTasks.filter((t) => t.status === 'blocked').length,
+    changes_requested: orgTasks.filter((t) => t.status === 'changes_requested').length,
+    ready_for_deployment: orgTasks.filter((t) => t.status === 'ready_for_deployment').length,
     completed: completedTasks,
+    cancelled: orgTasks.filter((t) => t.status === 'cancelled').length,
   };
 
   // Priority Breakdown
@@ -77,16 +114,20 @@ export const DashboardView: React.FC = () => {
     .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
     .slice(0, 5);
 
+  const currentHour = new Date().getHours();
+  const greeting = currentHour < 12 ? 'Good morning' : currentHour < 18 ? 'Good afternoon' : 'Good evening';
+  const firstName = currentUser?.name ? currentUser.name.split(' ')[0] : 'there';
+
   return (
     <div className="flex-1 flex flex-col h-full overflow-y-auto select-none p-6 space-y-6">
       {/* Top Banner / Welcome */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
-            Workspace Dashboard
+            {greeting}, {firstName}
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Real-time analytics and task velocity calculated from local JSON storage.
+            Here's what is happening across your workspace today.
           </p>
         </div>
 
@@ -106,12 +147,12 @@ export const DashboardView: React.FC = () => {
         <div className="glass-panel rounded-2xl p-4 border border-black/5 dark:border-white/5 shadow-xs">
           <div className="flex items-center justify-between text-slate-500 text-xs mb-2">
             <span className="font-medium">Projects</span>
-            <FolderKanban className="w-4 h-4 text-indigo-500" />
+            <FolderKanban className="w-4 h-4 text-blue-500" />
           </div>
           <div className="text-xl font-bold font-mono text-slate-900 dark:text-slate-100 tabular-nums">
             {orgProjects.length}
           </div>
-          <div className="text-[11px] text-slate-400 mt-1">active workspaces</div>
+          <div className="text-[11px] text-slate-400 mt-1">in this workspace</div>
         </div>
 
         <div className="glass-panel rounded-2xl p-4 border border-black/5 dark:border-white/5 shadow-xs">
@@ -122,7 +163,7 @@ export const DashboardView: React.FC = () => {
           <div className="text-xl font-bold font-mono text-slate-900 dark:text-slate-100 tabular-nums">
             {totalTasks}
           </div>
-          <div className="text-[11px] text-slate-400 mt-1">catalog items</div>
+          <div className="text-[11px] text-slate-400 mt-1">total tasks</div>
         </div>
 
         <div className="glass-panel rounded-2xl p-4 border border-black/5 dark:border-white/5 shadow-xs">
@@ -133,7 +174,7 @@ export const DashboardView: React.FC = () => {
           <div className="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400 tabular-nums">
             {completedTasks}
           </div>
-          <div className="text-[11px] text-slate-400 mt-1">{completionRate}% finished</div>
+          <div className="text-[11px] text-slate-400 mt-1">{completionRate}% completed</div>
         </div>
 
         <div className="glass-panel rounded-2xl p-4 border border-black/5 dark:border-white/5 shadow-xs">
@@ -144,18 +185,18 @@ export const DashboardView: React.FC = () => {
           <div className="text-xl font-bold font-mono text-slate-900 dark:text-slate-100 tabular-nums">
             {pendingTasks}
           </div>
-          <div className="text-[11px] text-slate-400 mt-1">in pipeline</div>
+          <div className="text-[11px] text-slate-400 mt-1">underway</div>
         </div>
 
         <div className="glass-panel rounded-2xl p-4 border border-black/5 dark:border-white/5 shadow-xs">
           <div className="flex items-center justify-between text-slate-500 text-xs mb-2">
             <span className="font-medium">Assigned to Me</span>
-            <UserCheck className="w-4 h-4 text-indigo-500" />
+            <UserCheck className="w-4 h-4 text-blue-500" />
           </div>
-          <div className="text-xl font-bold font-mono text-indigo-600 dark:text-indigo-400 tabular-nums">
+          <div className="text-xl font-bold font-mono text-blue-600 dark:text-blue-400 tabular-nums">
             {myAssignedTasks}
           </div>
-          <div className="text-[11px] text-slate-400 mt-1">action items</div>
+          <div className="text-[11px] text-slate-400 mt-1">assigned to you</div>
         </div>
 
         <div className="glass-panel rounded-2xl p-4 border border-black/5 dark:border-white/5 shadow-xs">
@@ -166,7 +207,7 @@ export const DashboardView: React.FC = () => {
           <div className="text-xl font-bold font-mono text-rose-600 dark:text-rose-400 tabular-nums">
             {overdueTasks}
           </div>
-          <div className="text-[11px] text-slate-400 mt-1">urgent followups</div>
+          <div className="text-[11px] text-slate-400 mt-1">needs attention</div>
         </div>
       </div>
 
@@ -176,7 +217,7 @@ export const DashboardView: React.FC = () => {
         <div className="glass-panel rounded-2xl p-5 border border-black/5 dark:border-white/5 shadow-xs">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">
-              Task Status Distribution
+              Tasks by Status
             </h3>
             <span className="text-xs font-mono text-slate-400 tabular-nums">
               {totalTasks} total
@@ -185,11 +226,14 @@ export const DashboardView: React.FC = () => {
 
           <div className="space-y-3 text-xs">
             {[
-              { label: 'Completed', count: statusCounts.completed, color: 'bg-emerald-500' },
-              { label: 'In Progress', count: statusCounts.in_progress, color: 'bg-blue-500' },
-              { label: 'In Review', count: statusCounts.in_review, color: 'bg-amber-500' },
-              { label: 'Blocked', count: statusCounts.blocked, color: 'bg-rose-500' },
               { label: 'To Do', count: statusCounts.todo, color: 'bg-slate-400' },
+              { label: 'In Progress', count: statusCounts.in_progress, color: 'bg-blue-500' },
+              { label: 'On Hold', count: statusCounts.on_hold, color: 'bg-amber-600' },
+              { label: 'Ready for Review', count: statusCounts.in_review, color: 'bg-blue-500' },
+              { label: 'Changes Requested', count: statusCounts.changes_requested, color: 'bg-orange-500' },
+              { label: 'Ready for Deployment', count: statusCounts.ready_for_deployment, color: 'bg-purple-500' },
+              { label: 'Completed', count: statusCounts.completed, color: 'bg-emerald-500' },
+              { label: 'Cancelled', count: statusCounts.cancelled, color: 'bg-rose-500' },
             ].map((item) => {
               const pct = totalTasks > 0 ? Math.round((item.count / totalTasks) * 100) : 0;
               return (
@@ -218,10 +262,10 @@ export const DashboardView: React.FC = () => {
         <div className="glass-panel rounded-2xl p-5 border border-black/5 dark:border-white/5 shadow-xs">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">
-              Tasks By Priority Level
+              Tasks by Priority
             </h3>
-            <span className="text-xs font-mono text-slate-400 tabular-nums">
-              Velocity check
+            <span className="text-xs text-slate-400">
+              Distribution
             </span>
           </div>
 
@@ -261,7 +305,7 @@ export const DashboardView: React.FC = () => {
                     selectProject(p.id);
                     setActiveTab('board');
                   }}
-                  className="flex items-center justify-between text-xs cursor-pointer hover:text-indigo-500 transition-colors"
+                  className="flex items-center justify-between text-xs cursor-pointer hover:text-blue-500 transition-colors"
                 >
                   <div className="flex items-center gap-2 truncate max-w-[180px]">
                     <span
@@ -289,12 +333,12 @@ export const DashboardView: React.FC = () => {
         <div className="glass-panel rounded-2xl p-5 border border-black/5 dark:border-white/5 shadow-xs">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+              <Calendar className="w-3.5 h-3.5 text-blue-500" />
               <span>Upcoming Deadlines</span>
             </h3>
             <button
               onClick={() => setActiveTab('calendar')}
-              className="text-[11px] text-indigo-500 hover:underline"
+              className="text-[11px] text-blue-500 hover:underline"
             >
               Full Calendar →
             </button>
@@ -345,9 +389,9 @@ export const DashboardView: React.FC = () => {
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
               <ActivityIcon className="w-3.5 h-3.5 text-emerald-500" />
-              <span>Recent Activity Stream</span>
+              <span>Recent Activity</span>
             </h3>
-            <span className="text-[11px] text-slate-400 font-mono">Audit trail</span>
+            <span className="text-[11px] text-slate-400">Timeline</span>
           </div>
 
           <div className="relative pl-3 border-l border-black/10 dark:border-white/10 space-y-3 text-xs">
@@ -355,7 +399,7 @@ export const DashboardView: React.FC = () => {
               const u = users.find((user) => user.id === act.userId);
               return (
                 <div key={act.id} className="relative flex items-center justify-between">
-                  <span className="absolute -left-[19px] w-2 h-2 rounded-full bg-indigo-500 ring-2 ring-[#0b0f19]" />
+                  <span className="absolute -left-[19px] w-2 h-2 rounded-full bg-blue-500 ring-2 ring-[#0b0f19]" />
                   <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300 truncate max-w-[280px]">
                     <span className="font-semibold text-slate-900 dark:text-slate-100">
                       {u?.name || 'User'}

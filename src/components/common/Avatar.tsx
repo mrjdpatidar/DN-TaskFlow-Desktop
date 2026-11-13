@@ -3,6 +3,7 @@ import React from 'react';
 interface AvatarProps {
   name: string;
   avatarUrl?: string;
+  avatarPreset?: string;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
   showOnline?: boolean;
@@ -19,11 +20,19 @@ const sizeClasses = {
 export const Avatar: React.FC<AvatarProps> = ({
   name,
   avatarUrl,
+  avatarPreset,
   size = 'md',
   className = '',
   showOnline = false,
 }) => {
   const [imageError, setImageError] = React.useState(false);
+
+  React.useEffect(() => {
+    setImageError(false);
+  }, [avatarUrl]);
+
+  // Check if avatarUrl is actually a preset emoji/token
+  const isEmojiPreset = avatarPreset || (avatarUrl && avatarUrl.startsWith('preset:') ? avatarUrl.replace('preset:', '') : null);
 
   const getInitials = (n: string) => {
     if (!n) return 'TF';
@@ -36,7 +45,7 @@ export const Avatar: React.FC<AvatarProps> = ({
 
   // Consistent pleasant color generation based on name
   const colors = [
-    'from-indigo-500 to-purple-600',
+    'from-blue-500 to-purple-600',
     'from-cyan-500 to-blue-600',
     'from-emerald-500 to-teal-600',
     'from-amber-500 to-orange-600',
@@ -47,8 +56,14 @@ export const Avatar: React.FC<AvatarProps> = ({
   const colorGradient = colors[charCodeSum % colors.length];
 
   return (
-    <div className={`relative inline-flex shrink-0 ${className}`}>
-      {avatarUrl && !imageError ? (
+    <div className={`relative inline-flex shrink-0 items-center justify-center ${className}`}>
+      {isEmojiPreset ? (
+        <div
+          className={`${sizeClasses[size]} rounded-full bg-slate-800/80 border border-white/10 flex items-center justify-center shadow-xs select-none`}
+        >
+          <span className="leading-none">{isEmojiPreset}</span>
+        </div>
+      ) : avatarUrl && !imageError ? (
         <img
           src={avatarUrl}
           alt={name}

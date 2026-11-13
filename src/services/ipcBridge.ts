@@ -1,5 +1,5 @@
 /**
- * Secure IPC Bridge for TaskFlow Desktop
+ * Secure IPC Bridge for TaskFlow
  * Adheres to: "Do not access Node.js filesystem APIs directly from React components.
  * All file operations must go through secure IPC communication."
  */
@@ -40,6 +40,10 @@ export interface ElectronBridge {
     appVersion: string;
     userDataPath: string;
   };
+  updater?: {
+    check: () => Promise<any>;
+    downloadAndInstall: (url: string) => Promise<{ success: boolean; error?: string }>;
+  };
 }
 
 declare global {
@@ -49,7 +53,7 @@ declare global {
 }
 
 const STORAGE_KEYS = {
-  DB: 'taskflow_desktop_database_v1',
+  DB: 'taskflow_desktop_database_v2',
   BACKUP_PREFIX: 'taskflow_desktop_backup_',
   LAST_BACKUP: 'taskflow_desktop_last_backup',
 };
@@ -166,12 +170,22 @@ class BrowserIPCBridge implements ElectronBridge {
       // Play audio chime
       playNotificationSound();
 
-      // Check native browser Notification support
+      // First priority: Native Electron OS Notification (Windows Toast)
+      if (this.api?.notifications?.send) {
+        try {
+          const sent = await this.api.notifications.send(notification);
+          if (sent) return true;
+        } catch (err) {
+          console.warn('[IPCBridge] Electron notification dispatch error:', err);
+        }
+      }
+
+      // Fallback: Native browser Notification support
       if (typeof window !== 'undefined' && 'Notification' in window) {
         if (Notification.permission === 'granted') {
           new Notification(notification.title, {
             body: notification.message,
-            icon: '/favicon.ico',
+            icon: '/icon.png',
           });
           return true;
         } else if (Notification.permission !== 'denied') {
@@ -179,6 +193,7 @@ class BrowserIPCBridge implements ElectronBridge {
           if (perm === 'granted') {
             new Notification(notification.title, {
               body: notification.message,
+              icon: '/icon.png',
             });
             return true;
           }
@@ -188,6 +203,9 @@ class BrowserIPCBridge implements ElectronBridge {
     },
 
     requestPermission: async (): Promise<boolean> => {
+      if (this.api?.notifications?.requestPermission) {
+        return await this.api.notifications.requestPermission();
+      }
       if (typeof window !== 'undefined' && 'Notification' in window) {
         const perm = await Notification.requestPermission();
         return perm === 'granted';

@@ -1,90 +1,265 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTaskFlowStore } from '../../stores/useTaskFlowStore';
 import { Modal } from '../common/Modal';
 import { Avatar } from '../common/Avatar';
-import { Shield, KeyRound, UserCheck, ArrowRight, Check, AlertCircle } from 'lucide-react';
+import { DNLogo, OrgLogo } from '../common/DNLogo';
+import { emailService } from '../../services/emailService';
+import {
+  Shield,
+  KeyRound,
+  Building2,
+  Mail,
+  Send,
+  Lock,
+  Sparkles,
+  Check,
+  AlertCircle,
+  Copy,
+  ArrowRight,
+  RefreshCw,
+  UserCheck,
+  ChevronRight,
+} from 'lucide-react';
 
 export const AuthModal: React.FC = () => {
   const {
     currentUserId,
     users,
-    login,
-    register,
+    organizations,
+    loginWithOrg,
+    registerOrganizationWithAdmin,
+    setPassword,
     recoverPassword,
     switchUser,
     isSwitchUserModalOpen,
     setSwitchUserModalOpen,
   } = useTaskFlowStore();
 
-  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [name, setName] = useState('');
-  const [title, setTitle] = useState('');
-  const [avatar, setAvatar] = useState('');
-  const [recoveryKey, setRecoveryKey] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(true);
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>(
+    organizations.length === 0 ? 'register' : 'login'
+  );
 
-  const [errorMessage, setErrorMessage] = useState('');
-  const [registeredKey, setRegisteredKey] = useState<string | null>(null);
+  // Login Method: 'password' or 'otp'
+  const [loginMethod, setLoginMethod] = useState<'password' | 'otp'>('password');
+
+  // Form Fields
+  const [orgIdentifier, setOrgIdentifier] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPasswordInput] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [otpSentMsg, setOtpSentMsg] = useState('');
+
+  // Register Fields (Organization Registration)
+  const [orgName, setOrgName] = useState('');
+  const [orgLogo, setOrgLogo] = useState('');
+  const [orgDesc, setOrgDesc] = useState('');
+  const [adminName, setAdminName] = useState('');
+  const [adminTitle, setAdminTitle] = useState('Workspace Owner');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminConfirmPassword, setAdminConfirmPassword] = useState('');
+
+  // Post-OTP Set Password Dialog State
+  const [showSetPasswordModal, setShowSetPasswordModal] = useState(false);
+  const [newPostPassword, setNewPostPassword] = useState('');
+  const [newPostConfirmPassword, setNewPostConfirmPassword] = useState('');
+  const [setPasswordMsg, setSetPasswordMsg] = useState('');
+
+  // Forgot Password / Recovery Fields
+  const [recoveryKey, setRecoveryKey] = useState('');
+  const [newRecoverPassword, setNewRecoverPassword] = useState('');
   const [recoveredSuccess, setRecoveredSuccess] = useState(false);
 
-  // If user is already logged in, only show switch modal if explicitly requested
-  if (currentUserId && !isSwitchUserModalOpen) {
+  // Success / Error States
+  const [errorMessage, setErrorMessage] = useState('');
+  const [registeredOrgInfo, setRegisteredOrgInfo] = useState<{
+    orgName: string;
+    inviteCode: string;
+  } | null>(null);
+  const [hasCopiedCode, setHasCopiedCode] = useState(false);
+  const [detectedInvitation, setDetectedInvitation] = useState<{ org: string; code: string } | null>(null);
+
+  // Auto-detect invitation links from URL query / hash
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash || '';
+      const search = window.location.search || '';
+
+      const getParam = (paramName: string) => {
+        const full = hash + '&' + search.replace('?', '');
+        const match = full.match(new RegExp('[#&?]' + paramName + '=([^&]+)'));
+        return match ? decodeURIComponent(match[1]) : null;
+      };
+
+      const inviteJoin = getParam('join');
+      const urlOrg = getParam('org');
+      const urlEmail = getParam('email');
+
+      if (inviteJoin || urlOrg) {
+        const code = inviteJoin || urlOrg || '';
+        const orgLabel = urlOrg || inviteJoin || '';
+        setOrgIdentifier(code);
+        setMode('login');
+        setLoginMethod('otp'); // Route directly to Email OTP for invited members!
+        setDetectedInvitation({ org: orgLabel, code });
+      }
+
+      if (urlEmail) {
+        setEmail(urlEmail);
+      }
+    }
+  }, []);
+
+  // If user is already logged in and not switching:
+  if (currentUserId && !isSwitchUserModalOpen && !showSetPasswordModal) {
     return null;
   }
 
-  const handleLoginSubmit = async (e: React.FormEvent) => {
+  // Handle Organization Registration
+  const handleRegisterOrgSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
-    const res = await login(email, password, rememberMe);
-    if (!res.success) {
-      setErrorMessage(res.error || 'Login failed');
-    } else {
-      setSwitchUserModalOpen(false);
-    }
-  };
 
-  const handleRegisterSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage('');
-    if (password !== confirmPassword) {
-      setErrorMessage('Passwords do not match');
+    if (adminPassword !== adminConfirmPassword) {
+      setErrorMessage('Passwords do not match.');
       return;
     }
-    const res = await register(name, email, password, avatar, title);
+    if (adminPassword.length < 6) {
+      setErrorMessage('Password must be at least 6 characters long.');
+      return;
+    }
+
+    const res = await registerOrganizationWithAdmin(
+      { name: orgName, logo: orgLogo, description: orgDesc },
+      { name: adminName, email, password: adminPassword, title: adminTitle }
+    );
+
     if (!res.success) {
-      setErrorMessage(res.error || 'Registration failed');
+      setErrorMessage(res.error || 'Failed to register organization.');
     } else {
-      setRegisteredKey(res.recoveryKey || null);
+      setRegisteredOrgInfo({
+        orgName,
+        inviteCode: res.inviteCode || 'TF-PROD01',
+      });
     }
   };
 
+  // Handle Dispatching Login OTP
+  const handleSendLoginOtp = async () => {
+    setErrorMessage('');
+    if (!email.trim()) {
+      setErrorMessage('Please enter your work email address first.');
+      return;
+    }
+
+    setIsSendingOtp(true);
+    const otpRes = await emailService.sendOTP(email.trim(), 'Team Member', 'login');
+    setIsSendingOtp(false);
+
+    if (otpRes.success) {
+      setOtpSentMsg(
+        otpRes.simulatedOtp
+          ? `6-digit code sent to ${email} (Demo code: ${otpRes.simulatedOtp})`
+          : `6-digit verification code dispatched to ${email}`
+      );
+    } else {
+      setErrorMessage(otpRes.error || 'Failed to dispatch email verification code.');
+    }
+  };
+
+  // Handle Workspace Login Submit
+  const handleWorkspaceLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage('');
+
+    if (!orgIdentifier.trim()) {
+      setErrorMessage('Please enter your Organization Name or Invite Code.');
+      return;
+    }
+    if (!email.trim()) {
+      setErrorMessage('Please enter your email address.');
+      return;
+    }
+
+    if (loginMethod === 'otp') {
+      if (!otpCode.trim()) {
+        setErrorMessage('Please enter the 6-digit OTP sent to your email.');
+        return;
+      }
+
+      const res = await loginWithOrg(orgIdentifier, email, undefined, otpCode);
+      if (!res.success) {
+        setErrorMessage(res.error || 'OTP verification failed.');
+      } else {
+        setSwitchUserModalOpen(false);
+        if (res.needsPasswordSet) {
+          setShowSetPasswordModal(true);
+        }
+      }
+    } else {
+      if (!password) {
+        setErrorMessage('Please enter your password or choose "Login with Email OTP".');
+        return;
+      }
+
+      const res = await loginWithOrg(orgIdentifier, email, password);
+      if (!res.success) {
+        setErrorMessage(res.error || 'Login failed. Please check your workspace and credentials.');
+      } else {
+        setSwitchUserModalOpen(false);
+      }
+    }
+  };
+
+  // Handle Setting Password post-OTP
+  const handleSetPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSetPasswordMsg('');
+
+    if (newPostPassword !== newPostConfirmPassword) {
+      setSetPasswordMsg('Passwords do not match.');
+      return;
+    }
+    if (newPostPassword.length < 6) {
+      setSetPasswordMsg('Password must be at least 6 characters.');
+      return;
+    }
+
+    if (currentUserId) {
+      const res = await setPassword(currentUserId, newPostPassword);
+      if (res.success) {
+        setShowSetPasswordModal(false);
+      } else {
+        setSetPasswordMsg(res.error || 'Could not save password.');
+      }
+    }
+  };
+
+  // Handle Recovery Submit
   const handleRecoverySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
-    const res = await recoverPassword(email, recoveryKey, newPassword);
+
+    const res = await recoverPassword(email, recoveryKey, newRecoverPassword);
     if (!res.success) {
-      setErrorMessage(res.error || 'Password recovery failed');
+      setErrorMessage(res.error || 'Password recovery failed. Check recovery key.');
     } else {
       setRecoveredSuccess(true);
       setTimeout(() => {
         setRecoveredSuccess(false);
         setMode('login');
-      }, 2500);
+      }, 2000);
     }
   };
 
-  // If opening switch user modal while logged in:
+  // Switch User Modal (if opened while logged in)
   if (isSwitchUserModalOpen) {
     return (
       <Modal
         isOpen={isSwitchUserModalOpen}
         onClose={() => setSwitchUserModalOpen(false)}
         title="Switch Local Workspace User"
-        description="Select an existing local team account to simulate multi-user collaboration."
+        description="Select an existing team account in this workspace."
         maxWidth="md"
       >
         <div className="space-y-2 text-xs">
@@ -96,23 +271,23 @@ export const AuthModal: React.FC = () => {
                 onClick={() => switchUser(u.id)}
                 className={`w-full flex items-center justify-between p-3 rounded-xl border text-left transition-all ${
                   isCurrent
-                    ? 'border-indigo-500 bg-indigo-500/10 font-medium'
+                    ? 'border-blue-500 bg-blue-500/10 font-medium'
                     : 'border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <Avatar name={u.name} avatarUrl={u.avatar} size="sm" />
+                  <Avatar name={u.name} avatarUrl={u.avatar} avatarPreset={u.avatarPreset} size="sm" />
                   <div>
                     <div className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                       <span>{u.name}</span>
-                      {isCurrent && (
-                        <span className="text-[10px] text-indigo-500">(Active)</span>
-                      )}
+                      {isCurrent && <span className="text-[10px] text-blue-500 font-bold">(Active)</span>}
                     </div>
-                    <div className="text-[11px] text-slate-400">{u.email} · {u.title || 'Member'}</div>
+                    <div className="text-[11px] text-slate-400">
+                      {u.email} · {u.title || 'Member'}
+                    </div>
                   </div>
                 </div>
-                {isCurrent && <Check className="w-4 h-4 text-indigo-500" />}
+                {isCurrent && <Check className="w-4 h-4 text-blue-500" />}
               </button>
             );
           })}
@@ -124,9 +299,9 @@ export const AuthModal: React.FC = () => {
                 setMode('register');
                 useTaskFlowStore.setState({ currentUserId: null });
               }}
-              className="text-[11px] text-indigo-500 hover:underline"
+              className="text-[11px] text-blue-500 font-semibold hover:underline"
             >
-              + Create New Local Account
+              + Register New Organization
             </button>
             <button
               onClick={() => setSwitchUserModalOpen(false)}
@@ -140,7 +315,72 @@ export const AuthModal: React.FC = () => {
     );
   }
 
-  // Not logged in: Show Authentication dialog
+  // Set Password Prompt Modal (Post-OTP Login)
+  if (showSetPasswordModal) {
+    return (
+      <Modal
+        isOpen={showSetPasswordModal}
+        onClose={() => setShowSetPasswordModal(false)}
+        title="Set Your Account Password"
+        description="You logged in via Email OTP. Set a password so you can sign in directly in the future."
+        maxWidth="md"
+      >
+        <form onSubmit={handleSetPasswordSubmit} className="space-y-3.5 text-xs">
+          {setPasswordMsg && (
+            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500">
+              {setPasswordMsg}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-slate-600 dark:text-slate-300 font-medium mb-1">
+              New Password *
+            </label>
+            <input
+              type="password"
+              required
+              value={newPostPassword}
+              onChange={(e) => setNewPostPassword(e.target.value)}
+              placeholder="Minimum 6 characters"
+              className="w-full px-3 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl outline-none text-slate-800 dark:text-slate-200"
+            />
+          </div>
+
+          <div>
+            <label className="block text-slate-600 dark:text-slate-300 font-medium mb-1">
+              Confirm Password *
+            </label>
+            <input
+              type="password"
+              required
+              value={newPostConfirmPassword}
+              onChange={(e) => setNewPostConfirmPassword(e.target.value)}
+              placeholder="Re-enter password"
+              className="w-full px-3 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl outline-none text-slate-800 dark:text-slate-200"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setShowSetPasswordModal(false)}
+              className="px-3.5 py-2 text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+            >
+              Skip for Now
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-xs"
+            >
+              Save Password
+            </button>
+          </div>
+        </form>
+      </Modal>
+    );
+  }
+
+  // Not Logged In: Master Auth Modal
   return (
     <Modal
       isOpen={!currentUserId}
@@ -150,15 +390,10 @@ export const AuthModal: React.FC = () => {
     >
       <div className="text-xs space-y-4">
         {/* Brand Lockup */}
-        <div className="text-center pb-2">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-xl mx-auto shadow-md mb-2">
-            TF
-          </div>
-          <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
-            TaskFlow Desktop
-          </h2>
+        <div className="text-center pb-2 flex flex-col items-center">
+          <DNLogo variant="full" size="md" className="mx-auto mb-2" />
           <p className="text-slate-500 text-xs mt-0.5">
-            Local-First Task Architecture with Apple Liquid Glass UI
+            Desktop Task & Workspace Management Platform
           </p>
         </div>
 
@@ -169,262 +404,419 @@ export const AuthModal: React.FC = () => {
           </div>
         )}
 
-        {/* Successful Registration Screen with Recovery Key */}
-        {registeredKey ? (
-          <div className="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20 space-y-3">
-            <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-semibold text-sm">
-              <Check className="w-4 h-4" />
-              <span>Registration Successful!</span>
+        {/* REGISTRATION SUCCESS CARD WITH INVITE CODE */}
+        {registeredOrgInfo ? (
+          <div className="p-5 rounded-2xl bg-blue-500/10 border border-blue-500/20 space-y-4 text-xs">
+            <div className="flex items-center gap-2 text-blue-500 font-bold text-sm">
+              <Check className="w-5 h-5 text-blue-500" />
+              <span>Workspace Registered Successfully!</span>
             </div>
-            <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-xs">
-              Here is your local <strong>Account Recovery Key</strong>. Save this in case you forget your password:
+
+            <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+              Your organization <strong>{registeredOrgInfo.orgName}</strong> is ready. Team members can join your workspace using this invite code:
             </p>
-            <div className="p-3 bg-white dark:bg-slate-800 rounded-lg font-mono font-bold text-center text-sm border border-indigo-500/30 text-indigo-500 select-all">
-              {registeredKey}
+
+            <div className="p-3.5 bg-white dark:bg-slate-800 rounded-xl border border-blue-500/30 flex items-center justify-between">
+              <span className="font-mono font-bold text-sm text-blue-500 tracking-wider">
+                {registeredOrgInfo.inviteCode}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(registeredOrgInfo.inviteCode);
+                  setHasCopiedCode(true);
+                  setTimeout(() => setHasCopiedCode(false), 2000);
+                }}
+                className="flex items-center gap-1 px-2.5 py-1 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg text-blue-500 font-semibold"
+              >
+                {hasCopiedCode ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{hasCopiedCode ? 'Copied' : 'Copy'}</span>
+              </button>
             </div>
+
             <button
               onClick={() => {
-                setRegisteredKey(null);
-                setMode('login');
+                setRegisteredOrgInfo(null);
+                setSwitchUserModalOpen(false);
               }}
-              className="w-full py-2 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-500 transition-colors"
+              className="w-full py-2.5 font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-xs transition-colors"
             >
-              Continue to Workspace
+              Enter TaskFlow Workspace
             </button>
           </div>
         ) : mode === 'login' ? (
-          /* LOGIN FORM */
-          <form onSubmit={handleLoginSubmit} className="space-y-3">
-            <div>
-              <label className="block text-slate-500 font-medium mb-1">Local Email</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="sarah@taskflow.local"
-                className="w-full px-3 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl outline-none text-slate-800 dark:text-slate-200"
-              />
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-slate-500 font-medium">Password</label>
-                <button
-                  type="button"
-                  onClick={() => setMode('forgot')}
-                  className="text-[11px] text-indigo-500 hover:underline"
-                >
-                  Forgot password?
-                </button>
-              </div>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full px-3 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl outline-none text-slate-800 dark:text-slate-200"
-              />
-            </div>
-
-            <div className="flex items-center justify-between py-1">
-              <label className="flex items-center gap-2 cursor-pointer text-slate-600 dark:text-slate-400">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-3.5 h-3.5 accent-indigo-600 rounded"
-                />
-                <span>Remember me on this machine</span>
-              </label>
-            </div>
-
-            <button
-              type="submit"
-              className="w-full py-2.5 font-medium text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-xs transition-colors"
-            >
-              Sign In
-            </button>
-
-            {/* Quick Demo Login Preset shortcuts */}
-            <div className="pt-2 text-center text-slate-400">
-              <span className="text-[11px]">Instant Demo Accounts (Default password: password123):</span>
-              <div className="flex justify-center gap-2 mt-1.5">
-                {users.slice(0, 3).map((u) => (
-                  <button
-                    key={u.id}
-                    type="button"
-                    onClick={() => {
-                      setEmail(u.email);
-                      setPassword('password123');
-                    }}
-                    className="px-2 py-1 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-lg text-[11px] text-slate-600 dark:text-slate-300 font-medium transition-colors"
-                  >
-                    {u.name.split(' ')[0]}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="pt-2 border-t border-black/5 dark:border-white/5 text-center">
-              <span className="text-slate-400">Don't have an account yet? </span>
-              <button
-                type="button"
-                onClick={() => setMode('register')}
-                className="text-indigo-500 font-medium hover:underline"
-              >
-                Register
-              </button>
-            </div>
-          </form>
-        ) : mode === 'register' ? (
-          /* REGISTER FORM */
-          <form onSubmit={handleRegisterSubmit} className="space-y-3">
-            <div>
-              <label className="block text-slate-500 font-medium mb-1">Full Name *</label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Sarah Chen"
-                className="w-full px-3 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl outline-none text-slate-800 dark:text-slate-200"
-              />
-            </div>
-
-            <div>
-              <label className="block text-slate-500 font-medium mb-1">Email *</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="sarah@taskflow.local"
-                className="w-full px-3 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl outline-none text-slate-800 dark:text-slate-200"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-slate-500 font-medium mb-1">Password *</label>
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full px-3 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl outline-none text-slate-800 dark:text-slate-200"
-                />
-              </div>
-              <div>
-                <label className="block text-slate-500 font-medium mb-1">Confirm Password *</label>
-                <input
-                  type="password"
-                  required
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full px-3 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl outline-none text-slate-800 dark:text-slate-200"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-slate-500 font-medium mb-1">Job Title (Optional)</label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Product Designer"
-                className="w-full px-3 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl outline-none text-slate-800 dark:text-slate-200"
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full py-2.5 font-medium text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-xs transition-colors"
-            >
-              Create Account
-            </button>
-
-            <div className="pt-2 border-t border-black/5 dark:border-white/5 text-center">
-              <span className="text-slate-400">Already have an account? </span>
-              <button
-                type="button"
-                onClick={() => setMode('login')}
-                className="text-indigo-500 font-medium hover:underline"
-              >
-                Sign In
-              </button>
-            </div>
-          </form>
-        ) : (
-          /* FORGOT PASSWORD SIMULATION */
-          <form onSubmit={handleRecoverySubmit} className="space-y-3">
-            <p className="text-slate-500 text-xs">
-              Enter your registered email and the Recovery Key you received upon creating your local account.
-            </p>
-
-            {recoveredSuccess && (
-              <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-                Password updated! Returning to login...
+          /* WORKSPACE LOGIN FLOW */
+          <div className="space-y-4">
+            {detectedInvitation && (
+              <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 space-y-1">
+                <div className="flex items-center gap-2 font-bold text-xs">
+                  <Sparkles className="w-4 h-4 text-blue-500" />
+                  <span>Workspace Invitation Detected</span>
+                </div>
+                <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                  You are invited to collaborate in <strong>{detectedInvitation.org}</strong>. Enter your email and verify with OTP to join immediately.
+                </p>
               </div>
             )}
 
-            <div>
-              <label className="block text-slate-500 font-medium mb-1">Email</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="sarah@taskflow.local"
-                className="w-full px-3 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl outline-none text-slate-800 dark:text-slate-200"
-              />
-            </div>
-
-            <div>
-              <label className="block text-slate-500 font-medium mb-1">Recovery Key</label>
-              <input
-                type="text"
-                required
-                value={recoveryKey}
-                onChange={(e) => setRecoveryKey(e.target.value.toUpperCase())}
-                placeholder="TASK-RECO-XXXX-XXXX"
-                className="w-full px-3 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl outline-none font-mono text-slate-800 dark:text-slate-200"
-              />
-            </div>
-
-            <div>
-              <label className="block text-slate-500 font-medium mb-1">New Password</label>
-              <input
-                type="password"
-                required
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full px-3 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl outline-none text-slate-800 dark:text-slate-200"
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full py-2.5 font-medium text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-xs transition-colors"
-            >
-              Reset Password
-            </button>
-
-            <div className="pt-2 text-center">
+            <div className="flex items-center justify-center p-1 bg-black/5 dark:bg-white/5 rounded-xl border border-black/5 dark:border-white/10">
               <button
                 type="button"
-                onClick={() => setMode('login')}
-                className="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                onClick={() => setLoginMethod('password')}
+                className={`flex-1 py-1.5 font-semibold rounded-lg transition-all ${
+                  loginMethod === 'password'
+                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
               >
-                Back to Sign In
+                Password Login
+              </button>
+              <button
+                type="button"
+                onClick={() => setLoginMethod('otp')}
+                className={`flex-1 py-1.5 font-semibold rounded-lg transition-all ${
+                  loginMethod === 'otp'
+                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                Login with Email OTP
               </button>
             </div>
-          </form>
+
+            <form onSubmit={handleWorkspaceLoginSubmit} className="space-y-3.5">
+              {/* Organization Name or Invite Code */}
+              <div>
+                <label className="block text-slate-600 dark:text-slate-300 font-medium mb-1 flex items-center justify-between">
+                  <span>Organization Name or Invite Code *</span>
+                  <span className="text-[10px] text-slate-400">e.g. Acme Corp / TF-PROD01</span>
+                </label>
+                <div className="relative">
+                  <Building2 className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    required
+                    value={orgIdentifier}
+                    onChange={(e) => setOrgIdentifier(e.target.value)}
+                    placeholder="Enter workspace name or invite code..."
+                    className="w-full pl-9 pr-3 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl outline-none text-slate-800 dark:text-slate-200 font-medium"
+                  />
+                </div>
+              </div>
+
+              {/* Work Email */}
+              <div>
+                <label className="block text-slate-600 dark:text-slate-300 font-medium mb-1">
+                  Work Email Address *
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="name@company.com"
+                    className="w-full pl-9 pr-3 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl outline-none text-slate-800 dark:text-slate-200 font-medium"
+                  />
+                </div>
+              </div>
+
+              {loginMethod === 'password' ? (
+                /* Password Input */
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-slate-600 dark:text-slate-300 font-medium">Password *</label>
+                    <button
+                      type="button"
+                      onClick={() => setLoginMethod('otp')}
+                      className="text-[11px] text-blue-500 font-semibold hover:underline"
+                    >
+                      No password? Use Email OTP
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                    <input
+                      type="password"
+                      required
+                      value={password}
+                      onChange={(e) => setPasswordInput(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pl-9 pr-3 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl outline-none text-slate-800 dark:text-slate-200"
+                    />
+                  </div>
+                </div>
+              ) : (
+                /* OTP Verification Input */
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-slate-600 dark:text-slate-300 font-medium">
+                      6-Digit Email OTP *
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleSendLoginOtp}
+                      disabled={isSendingOtp}
+                      className="text-[11px] text-blue-500 font-semibold hover:underline flex items-center gap-1"
+                    >
+                      {isSendingOtp ? (
+                        <RefreshCw className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <Send className="w-3 h-3" />
+                      )}
+                      <span>{isSendingOtp ? 'Sending...' : 'Send OTP Code'}</span>
+                    </button>
+                  </div>
+
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value)}
+                    placeholder="Enter 6-digit verification code"
+                    className="w-full px-3 py-2 text-center tracking-widest font-mono font-bold bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl outline-none text-slate-800 dark:text-slate-200 text-sm"
+                  />
+
+                  {otpSentMsg && (
+                    <p className="text-[11px] text-emerald-500 font-medium">{otpSentMsg}</p>
+                  )}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="w-full py-2.5 font-bold text-white bg-blue-600 hover:bg-blue-500 active:bg-blue-700 rounded-xl shadow-xs transition-colors"
+              >
+                {loginMethod === 'otp' ? 'Verify OTP & Enter Workspace' : 'Sign In to Workspace'}
+              </button>
+
+              <div className="pt-2 border-t border-black/5 dark:border-white/5 text-center flex items-center justify-between text-[11px]">
+                <button
+                  type="button"
+                  onClick={() => setMode('forgot')}
+                  className="text-slate-400 hover:text-blue-500 transition-colors"
+                >
+                  Forgot password?
+                </button>
+                <div>
+                  <span className="text-slate-400">New here? </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('register');
+                      setErrorMessage('');
+                    }}
+                    className="text-blue-500 font-bold hover:underline"
+                  >
+                    Register Organization
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        ) : mode === 'register' ? (
+          /* ORGANIZATION REGISTRATION FLOW */
+          <div className="space-y-4">
+            <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-500 text-xs">
+              <span className="font-bold block">Register Organization Workspace</span>
+              <span className="text-[11px] text-slate-300">
+                Setup your team workspace and create your administrator profile.
+              </span>
+            </div>
+
+            <form onSubmit={handleRegisterOrgSubmit} className="space-y-3">
+              {/* Organization Name */}
+              <div>
+                <label className="block text-slate-600 dark:text-slate-300 font-medium mb-1">
+                  Organization Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={orgName}
+                  onChange={(e) => setOrgName(e.target.value)}
+                  placeholder="e.g. Acme Technologies"
+                  className="w-full px-3 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl outline-none text-slate-800 dark:text-slate-200 font-semibold"
+                />
+              </div>
+
+              {/* Admin Name & Role */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-300 font-medium mb-1">
+                    Administrator Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={adminName}
+                    onChange={(e) => setAdminName(e.target.value)}
+                    placeholder="Sarah Chen"
+                    className="w-full px-3 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl outline-none text-slate-800 dark:text-slate-200"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-300 font-medium mb-1">
+                    Job Title
+                  </label>
+                  <input
+                    type="text"
+                    value={adminTitle}
+                    onChange={(e) => setAdminTitle(e.target.value)}
+                    placeholder="Founder, Lead"
+                    className="w-full px-3 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl outline-none text-slate-800 dark:text-slate-200"
+                  />
+                </div>
+              </div>
+
+              {/* Admin Email */}
+              <div>
+                <label className="block text-slate-600 dark:text-slate-300 font-medium mb-1">
+                  Work Email Address *
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@company.com"
+                  className="w-full px-3 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl outline-none text-slate-800 dark:text-slate-200"
+                />
+              </div>
+
+              {/* Password & Confirm */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-300 font-medium mb-1">
+                    Password *
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={adminPassword}
+                    onChange={(e) => setAdminPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full px-3 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl outline-none text-slate-800 dark:text-slate-200"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-300 font-medium mb-1">
+                    Confirm Password *
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={adminConfirmPassword}
+                    onChange={(e) => setAdminConfirmPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full px-3 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl outline-none text-slate-800 dark:text-slate-200"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-2.5 font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-xs transition-colors mt-2"
+              >
+                Register Workspace & Administrator
+              </button>
+
+              <div className="pt-2 border-t border-black/5 dark:border-white/5 text-center">
+                <span className="text-slate-400">Already have an organization? </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('login');
+                    setErrorMessage('');
+                  }}
+                  className="text-blue-500 font-bold hover:underline"
+                >
+                  Sign In
+                </button>
+              </div>
+            </form>
+          </div>
+        ) : (
+          /* FORGOT PASSWORD / RECOVERY FLOW */
+          <div className="space-y-4">
+            <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-500 text-xs">
+              <span className="font-bold block">Reset Account Password</span>
+              <span className="text-[11px] text-slate-300">
+                Enter your registered email and Account Recovery Key to reset your password.
+              </span>
+            </div>
+
+            {recoveredSuccess && (
+              <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs flex items-center gap-2">
+                <Check className="w-4 h-4" />
+                <span>Password updated successfully! Redirecting to login...</span>
+              </div>
+            )}
+
+            <form onSubmit={handleRecoverySubmit} className="space-y-3">
+              <div>
+                <label className="block text-slate-600 dark:text-slate-300 font-medium mb-1">
+                  Email Address *
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@company.com"
+                  className="w-full px-3 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl outline-none text-slate-800 dark:text-slate-200"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-600 dark:text-slate-300 font-medium mb-1">
+                  Account Recovery Key *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={recoveryKey}
+                  onChange={(e) => setRecoveryKey(e.target.value)}
+                  placeholder="TF-ADMIN-RECO-XXXX"
+                  className="w-full px-3 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl outline-none text-slate-800 dark:text-slate-200 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-600 dark:text-slate-300 font-medium mb-1">
+                  New Password *
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={newRecoverPassword}
+                  onChange={(e) => setNewRecoverPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-3 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl outline-none text-slate-800 dark:text-slate-200"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-2.5 font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-xs transition-colors"
+              >
+                Reset Password
+              </button>
+
+              <div className="pt-2 border-t border-black/5 dark:border-white/5 text-center">
+                <button
+                  type="button"
+                  onClick={() => setMode('login')}
+                  className="text-blue-500 font-semibold hover:underline"
+                >
+                  ← Back to Workspace Sign In
+                </button>
+              </div>
+            </form>
+          </div>
         )}
       </div>
     </Modal>

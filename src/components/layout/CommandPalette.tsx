@@ -15,6 +15,8 @@ import {
   LayoutDashboard,
   ArrowRight,
   Sparkles,
+  Activity as ActivityIcon,
+  ShieldAlert,
 } from 'lucide-react';
 import { PriorityIcon } from '../common/PriorityIcon';
 import { StatusBadge } from '../common/StatusBadge';
@@ -96,6 +98,16 @@ export const CommandPalette: React.FC = () => {
       icon: Moon,
       action: () => {
         toggleTheme();
+        setCommandPaletteOpen(false);
+      },
+    },
+    {
+      id: 'view_logs',
+      label: 'View Audit Logs & Activity History',
+      icon: ActivityIcon,
+      action: () => {
+        selectProject(null);
+        setActiveTab('logs');
         setCommandPaletteOpen(false);
       },
     },
@@ -227,7 +239,7 @@ export const CommandPalette: React.FC = () => {
                       onClick={act.action}
                       className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-black/5 dark:hover:bg-white/5 text-xs font-medium text-slate-700 dark:text-slate-200 transition-colors"
                     >
-                      <Icon className="w-4 h-4 text-indigo-500 shrink-0" />
+                      <Icon className="w-4 h-4 text-blue-500 shrink-0" />
                       <span>{act.label}</span>
                     </button>
                   );

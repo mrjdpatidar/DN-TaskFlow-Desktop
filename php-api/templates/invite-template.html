@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invitation to join {{ORG_NAME}} on DN TaskFlow</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #0b0f19;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: #e2e8f0;
+    }
+    .wrapper {
+      max-width: 580px;
+      margin: 40px auto;
+      background: #111827;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    }
+    .header {
+      padding: 36px 32px 20px;
+      text-align: center;
+      background: linear-gradient(180deg, rgba(0, 128, 250, 0.18) 0%, rgba(17, 24, 39, 0) 100%);
+    }
+    .logo-container {
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #ffffff;
+      margin: 0 0 6px;
+    }
+    .subtitle {
+      font-size: 13px;
+      color: #94a3b8;
+      margin: 0;
+    }
+    .content {
+      padding: 24px 32px 32px;
+    }
+    .text {
+      font-size: 14px;
+      line-height: 1.6;
+      color: #cbd5e1;
+      margin-bottom: 24px;
+    }
+    .org-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    .org-badge {
+      width: 42px;
+      height: 42px;
+      line-height: 42px;
+      text-align: center;
+      background: #0080fa;
+      color: #ffffff;
+      font-weight: 800;
+      font-size: 15px;
+      border-radius: 12px;
+      margin-right: 16px;
+      box-shadow: 0 4px 12px rgba(0, 128, 250, 0.35);
+      flex-shrink: 0;
+    }
+    .org-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #ffffff;
+      margin: 0 0 4px;
+    }
+    .org-role {
+      font-size: 12px;
+      color: #60a5fa;
+      text-transform: capitalize;
+    }
+    .invite-box {
+      background: rgba(0, 128, 250, 0.08);
+      border: 1px dashed #0080fa;
+      border-radius: 14px;
+      padding: 20px;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .invite-code {
+      font-family: 'SF Mono', Monaco, Menlo, 'Courier New', monospace;
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: 4px;
+      color: #0080fa;
+      margin: 0;
+    }
+    .btn-container {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .btn {
+      display: inline-block;
+      padding: 14px 32px;
+      background: #0080fa;
+      color: #ffffff !important;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 12px;
+      box-shadow: 0 4px 14px rgba(0, 128, 250, 0.4);
+    }
+    .app-links-box {
+      margin: 24px 0 16px;
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      text-align: center;
+    }
+    .link-btn {
+      display: inline-block;
+      margin: 4px 6px;
+      padding: 9px 18px;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      border-radius: 8px;
+    }
+    .link-web {
+      background: #0080fa;
+      color: #ffffff !important;
+    }
+    .link-desktop {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #ffffff !important;
+    }
+    .footer {
+      padding: 20px 32px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      text-align: center;
+      font-size: 11px;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <div class="logo-container">
+        <img src="https://app.drunall.com/taskflow/dn_taskflow_logo.png" alt="DN TaskFlow" width="180" style="display: inline-block; max-height: 46px; border: 0; outline: none;" />
+      </div>
+      <h1 class="title">You're Invited!</h1>
+      <p class="subtitle">Join {{ORG_NAME}} workspace on DN TaskFlow</p>
+    </div>
+    <div class="content">
+      <p class="text">Hello,<br><br>
+      <strong>{{INVITER_NAME}}</strong> has invited you to collaborate in the <strong>{{ORG_NAME}}</strong> workspace on DN TaskFlow with the role of <strong style="color: #60a5fa; text-transform: capitalize;">{{ROLE}}</strong>.</p>
+      
+      <div class="org-card">
+        <div class="org-badge">DN</div>
+        <div>
+          <div class="org-title">{{ORG_NAME}}</div>
+          <div class="org-role">Assigned Role: {{ROLE}}</div>
+        </div>
+      </div>
+
+      <div class="invite-box">
+        <div style="font-size: 12px; color: #94a3b8; margin-bottom: 6px;">Your Workspace Invite Code:</div>
+        <div class="invite-code">{{INVITE_CODE}}</div>
+        <div style="font-size: 11px; color: #64748b; margin-top: 6px;">Enter this code or click the button below to join instantly with Email OTP</div>
+      </div>
+
+      <div class="btn-container">
+        <a href="{{INVITE_URL}}" class="btn">Accept Invitation & Join Workspace</a>
+      </div>
+
+      <div class="app-links-box">
+        <div style="font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 10px;">Access DN TaskFlow Anywhere:</div>
+        <a href="https://app.drunall.com/taskflow" class="link-btn link-web">🌐 Open Web Portal</a>
+        <a href="http://app.drunall.com/taskflow/downloads/DN%20TaskFlow-Setup.exe" class="link-btn link-desktop">Download Desktop App (.exe)</a>
+      </div>
+    </div>
+    <div class="footer">
+      &copy; 2026 DN TaskFlow by Drunall Technologies. All rights reserved.
+    </div>
+  </div>
+</body>
+</html>

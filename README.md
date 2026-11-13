@@ -1,4 +1,4 @@
-# TaskFlow Desktop ⚡💎
+# TaskFlow ⚡💎
 
 A modern, high-performance desktop task management application inspired by **Linear** and **Slack**, designed with an **Apple Liquid Glass** aesthetic, frosted glass translucency, local-first architecture, and a secure Electron IPC bridge.
 
@@ -24,7 +24,7 @@ A modern, high-performance desktop task management application inspired by **Lin
 
 ## 🏗️ Storage & IPC Architecture
 
-TaskFlow Desktop isolates all filesystem I/O in the Electron main process via `contextBridge`. The renderer never interacts directly with Node.js APIs.
+TaskFlow isolates all filesystem I/O in the Electron main process via `contextBridge`. The renderer never interacts directly with Node.js APIs.
 
 ```text
 userData/
@@ -200,4 +200,4 @@ To bundle a standalone `.exe` installer (Windows) or `.dmg` / `.app` (macOS):
 
 ## 🛡️ License
 
-TaskFlow Desktop is distributed under the **Apache-2.0 License**.
+TaskFlow is distributed under the **Apache-2.0 License**.

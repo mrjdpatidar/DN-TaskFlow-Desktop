@@ -46,14 +46,14 @@ export const Modal: React.FC<ModalProps> = ({
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-          {/* Liquid Glass Backdrop */}
+          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18, ease: 'easeOut' }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/55 backdrop-blur-md"
+            className="fixed inset-0 bg-black/65 backdrop-blur-sm"
           />
 
           {/* Modal Panel */}
@@ -62,7 +62,7 @@ export const Modal: React.FC<ModalProps> = ({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 8 }}
             transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-            className={`relative w-full ${widthClasses[maxWidth]} glass-panel bg-white/90 dark:bg-slate-900/90 rounded-2xl shadow-2xl border border-black/5 dark:border-white/10 overflow-hidden z-10 my-auto`}
+            className={`relative w-full ${widthClasses[maxWidth]} bg-white dark:bg-[#0f172a] rounded-2xl shadow-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden z-10 my-auto`}
           >
             {(title || showCloseButton) && (
               <div className="flex items-center justify-between px-6 py-4.5 border-b border-black/5 dark:border-white/5">

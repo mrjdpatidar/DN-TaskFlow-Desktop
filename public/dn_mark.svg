@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 224 187" width="224" height="187">
+  <defs>
+    <linearGradient id="dnBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0096fa" />
+      <stop offset="50%" stop-color="#0080fa" />
+      <stop offset="100%" stop-color="#1070fa" />
+    </linearGradient>
+  </defs>
+  <path d="M 133,140 L 108,103 L 106,103 L 104,110 L 98,121 L 91,129 L 78,138 L 66,142 L 5,142 L 4,143 L 2,143 L 2,147 L 5,154 L 9,169 L 11,172 L 13,181 L 16,185 L 62,185 L 80,182 L 92,178 L 102,173 L 115,164 L 127,152 L 133,144 Z M 2,1 L 3,128 L 42,128 L 42,47 L 45,43 L 50,42 L 62,42 L 68,43 L 74,45 L 85,51 L 97,63 L 177,184 L 179,185 L 220,185 L 222,183 L 222,3 L 221,1 L 181,2 L 180,114 L 129,37 L 115,22 L 104,14 L 88,6 L 68,1 Z" fill="url(#dnBlue)" fill-rule="evenodd" />
+</svg>

@@ -84,7 +84,7 @@ export const TaskCalendarView: React.FC = () => {
       <div className="px-6 py-3 border-b border-black/5 dark:border-white/5 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <CalendarIcon className="w-4 h-4 text-indigo-500" />
+            <CalendarIcon className="w-4 h-4 text-blue-500" />
             <span>{monthNames[month]} {year}</span>
           </h2>
 
@@ -112,7 +112,7 @@ export const TaskCalendarView: React.FC = () => {
 
         <button
           onClick={() => setCreateTaskOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-xs transition-colors whitespace-nowrap"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-xs transition-colors whitespace-nowrap"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>New Task</span>
@@ -148,7 +148,7 @@ export const TaskCalendarView: React.FC = () => {
               <div className="flex items-center justify-between mb-1">
                 <span
                   className={`text-xs font-mono font-medium w-6 h-6 rounded-full flex items-center justify-center ${
-                    isToday ? 'bg-indigo-600 text-white font-bold' : ''
+                    isToday ? 'bg-blue-600 text-white font-bold' : ''
                   }`}
                 >
                   {slot.dayNumber}
@@ -174,7 +174,7 @@ export const TaskCalendarView: React.FC = () => {
                       className={`px-2 py-1 rounded-md text-[11px] font-medium truncate cursor-pointer transition-all border flex items-center gap-1.5 ${
                         isCompleted
                           ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 line-through opacity-75'
-                          : 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/20 hover:border-indigo-500/40'
+                          : 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20 hover:border-blue-500/40'
                       }`}
                     >
                       <span

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 140" width="680" height="140" fill="none">
+  <defs>
+    <linearGradient id="dnBlueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0096fa" />
+      <stop offset="50%" stop-color="#0080fa" />
+      <stop offset="100%" stop-color="#1070fa" />
+    </linearGradient>
+  </defs>
+
+  <!-- DN Brand Glyph (scaled down from 224x187 to 108x90 at x=10, y=25) -->
+  <g transform="translate(15, 22) scale(0.51)">
+    <path d="dnBlue" fill="url(#dnBlueGrad)" fill-rule="evenodd" />
+  </g>
+
+  <!-- TASK -->
+  <text x="145" y="94" font-family="'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="78" font-weight="900" letter-spacing="-1" fill="#0A0D14">TASK</text>
+
+  <!-- FL -->
+  <text x="390" y="94" font-family="'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="78" font-weight="900" letter-spacing="-1" fill="#0A0D14">FL</text>
+
+  <!-- O (Circular Domain Badge like DNPOS cutlery) -->
+  <g transform="translate(508, 64)">
+    <!-- Outer Circle -->
+    <circle cx="0" cy="0" r="34" fill="#0A0D14" />
+    <!-- Checkmark & Task Flow Line inside O -->
+    <path d="M-13 1 L-4 10 L14 -8" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+  </g>
+
+  <!-- W -->
+  <text x="554" y="94" font-family="'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="78" font-weight="900" letter-spacing="-1" fill="#0A0D14">W</text>
+</svg>

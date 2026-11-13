@@ -1,0 +1,86 @@
+# ==============================================================================
+# DN TaskFlow - Apache Production Configuration (.htaccess)
+# Designed for Hostinger Shared/Cloud Hosting Deployment
+# Target Live URL: https://app.drunall.com/taskflow
+# ==============================================================================
+
+# 1. Enable URL Rewriting & SPA Routing
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /taskflow/
+
+  # Pass existing files and directories directly through without rewriting
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Allow direct execution of PHP API endpoints
+  RewriteRule ^api/(.*)$ api/$1 [L,QSA]
+
+  # Allow direct file access for application downloads
+  RewriteRule ^downloads/(.*)$ downloads/$1 [L]
+
+  # SPA Fallback: Route all other frontend URLs to index.html
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# 2. Security Headers
+<IfModule mod_headers.c>
+  # Prevent Clickjacking
+  Header set X-Frame-Options "SAMEORIGIN"
+  
+  # Prevent MIME-type Sniffing
+  Header set X-Content-Type-Options "nosniff"
+  
+  # Referrer Policy
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+  
+  # Permissions Policy
+  Header set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+</IfModule>
+
+# 3. Explicit MIME Types
+<IfModule mod_mime.c>
+  AddType application/javascript    js mjs
+  AddType text/css                  css
+  AddType image/svg+xml             svg svgz
+  AddType application/json          json
+  AddType font/woff2                woff2
+  AddType font/woff                 woff
+  AddType image/webp                webp
+  AddType image/png                 png
+</IfModule>
+
+# 4. Browser Caching & Performance
+<IfModule mod_headers.c>
+  # Immutable long-term caching for hashed bundle assets (1 year)
+  <FilesMatch "\.(js|mjs|css|woff2|woff|png|jpe?g|gif|svg|webp|ico)$">
+    Header set Cache-Control "max-age=31536000, public, immutable"
+  </FilesMatch>
+
+  # Prevent caching of index.html and version.json to ensure instant updates upon new deployment
+  <FilesMatch "^(index\.html|version\.json)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+</IfModule>
+
+# 5. Gzip & Deflate Compression
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html
+  AddOutputFilterByType DEFLATE text/plain
+  AddOutputFilterByType DEFLATE text/xml
+  AddOutputFilterByType DEFLATE text/css
+  AddOutputFilterByType DEFLATE application/javascript
+  AddOutputFilterByType DEFLATE application/x-javascript
+  AddOutputFilterByType DEFLATE application/json
+  AddOutputFilterByType DEFLATE image/svg+xml
+</IfModule>
+
+# 6. Block Access to Hidden & Sensitive Files
+<FilesMatch "^\.(?!well-known)">
+  Order allow,deny
+  Deny from all
+</FilesMatch>
+

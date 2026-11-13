@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTaskFlowStore } from '../../stores/useTaskFlowStore';
 import { ipcBridge } from '../../services/ipcBridge';
 import { Avatar } from '../common/Avatar';
+import { DNLogo, OrgLogo } from '../common/DNLogo';
 import {
   Search,
   Bell,
@@ -17,6 +18,8 @@ import {
   Settings,
   HardDrive,
   Users,
+  Camera,
+  RotateCw,
 } from 'lucide-react';
 
 export const TitleBar: React.FC = () => {
@@ -36,10 +39,24 @@ export const TitleBar: React.FC = () => {
     setSettingsOpen,
     setSwitchUserModalOpen,
     toggleTheme,
+    syncWithServer,
     logout,
   } = useTaskFlowStore();
 
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await syncWithServer();
+    } catch (err) {
+      console.warn('Sync failed:', err);
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 600);
+    }
+  };
 
   const currentUser = users.find((u) => u.id === currentUserId);
   const currentOrg = organizations.find((o) => o.id === currentOrgId);
@@ -57,21 +74,27 @@ export const TitleBar: React.FC = () => {
       case 'dashboard':
         return 'Overview';
       case 'my_tasks':
-        return 'My Assigned Tasks';
+        return 'My Tasks';
       case 'board':
-        return 'Kanban Workspace';
+        return 'Board';
       case 'all_tasks':
         return 'All Tasks';
       case 'calendar':
-        return 'Due Dates Calendar';
+        return 'Calendar';
       case 'overdue':
-        return 'Overdue Urgencies';
+        return 'Overdue';
       case 'projects':
-        return 'Projects Directory';
+        return 'Projects';
       case 'members':
-        return 'Organization Members';
+        return 'Members';
+      case 'logs':
+        return 'Activity Logs';
+      case 'create_task':
+        return 'New Task';
+      case 'admin':
+        return 'SuperAdmin';
       case 'settings':
-        return 'System Preferences';
+        return 'Settings';
       default:
         return 'Workspace';
     }
@@ -101,8 +124,11 @@ export const TitleBar: React.FC = () => {
 
         {/* Clean Breadcrumb Hierarchy */}
         <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+          <div className="hidden sm:flex items-center pr-1 border-r border-black/10 dark:border-white/10">
+            <DNLogo variant="full" size="xs" />
+          </div>
           <span className="flex items-center gap-1.5 text-slate-900 dark:text-slate-200 font-semibold truncate max-w-[140px]">
-            <span>{currentOrg?.logo || '🏢'}</span>
+            <OrgLogo name={currentOrg?.name} logo={currentOrg?.logo} size="xs" />
             <span className="truncate">{currentOrg?.name || 'Workspace'}</span>
           </span>
           <span className="opacity-40 font-mono">/</span>
@@ -130,25 +156,24 @@ export const TitleBar: React.FC = () => {
 
       {/* Right: Actions, Notifications, Theme, User */}
       <div className="flex items-center gap-2 shrink-0">
-        {/* Hourly reminder status indicator */}
-        {preferences.hourlyRemindersEnabled && (
-          <div
-            title={`Hourly reminders active (${preferences.reminderIntervalMinutes}m interval)`}
-            className="hidden lg:flex items-center gap-1.5 px-2 py-1 text-[11px] text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
-          >
-            <Clock className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
-            <span className="tabular-nums">Hourly</span>
-          </div>
-        )}
-
         {/* Create Task Button */}
         <button
           onClick={() => setCreateTaskOpen(true)}
-          style={{ backgroundColor: preferences.accentColor || '#5b8def' }}
+          style={{ backgroundColor: preferences.accentColor || '#0080fa' }}
           className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white hover:opacity-90 active:scale-95 rounded-lg shadow-sm transition-all whitespace-nowrap"
         >
           <Plus className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">New Task</span>
+        </button>
+
+        {/* Refresh & Sync Button */}
+        <button
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          title="Refresh & sync workspace with cloud"
+          className="p-1.5 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-colors"
+        >
+          <RotateCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-blue-500' : ''}`} />
         </button>
 
         {/* Theme Toggle */}
@@ -185,6 +210,7 @@ export const TitleBar: React.FC = () => {
             <Avatar
               name={currentUser?.name || 'User'}
               avatarUrl={currentUser?.avatar}
+              avatarPreset={currentUser?.avatarPreset}
               size="sm"
             />
             <ChevronDown className="w-3 h-3 text-slate-400" />
@@ -196,7 +222,7 @@ export const TitleBar: React.FC = () => {
                 className="fixed inset-0 z-40"
                 onClick={() => setIsProfileMenuOpen(false)}
               />
-              <div className="absolute right-0 mt-2 w-64 glass-dropdown rounded-xl py-1.5 z-50 text-xs">
+              <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-[#131b2e] border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl py-1.5 z-50 text-xs">
                 <div className="px-3.5 py-2.5 border-b border-black/5 dark:border-white/5">
                   <p className="font-semibold text-slate-900 dark:text-slate-100 truncate">
                     {currentUser?.name || 'Local User'}
@@ -204,7 +230,7 @@ export const TitleBar: React.FC = () => {
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
                     {currentUser?.email || 'user@taskflow.local'}
                   </p>
-                  <div className="mt-1 flex items-center gap-1 text-[10px] text-indigo-500 dark:text-indigo-400">
+                  <div className="mt-1 flex items-center gap-1 text-[10px] text-blue-500 dark:text-blue-400">
                     <Shield className="w-3 h-3" />
                     <span>{currentUser?.title || 'Team Member'}</span>
                   </div>
@@ -218,8 +244,19 @@ export const TitleBar: React.FC = () => {
                     }}
                     className="w-full flex items-center gap-2 px-3 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-colors"
                   >
+                    <Camera className="w-3.5 h-3.5 text-blue-500" />
+                    <span>Change Profile Photo</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsProfileMenuOpen(false);
+                      setSettingsOpen(true, 'profile');
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-colors"
+                  >
                     <Settings className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Profile & Security</span>
+                    <span>Settings</span>
                   </button>
 
                   <button
@@ -229,19 +266,8 @@ export const TitleBar: React.FC = () => {
                     }}
                     className="w-full flex items-center gap-2 px-3 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-colors"
                   >
-                    <UserCheck className="w-3.5 h-3.5 text-indigo-400" />
+                    <UserCheck className="w-3.5 h-3.5 text-blue-400" />
                     <span>Switch Local User</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setIsProfileMenuOpen(false);
-                      setSettingsOpen(true, 'storage');
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-colors"
-                  >
-                    <HardDrive className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Local JSON Backups</span>
                   </button>
 
                   <div className="my-1 border-t border-black/5 dark:border-white/5" />

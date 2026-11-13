@@ -1,39 +1,86 @@
 {
-  "name": "react-example",
+  "name": "dn-taskflow",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.4",
+  "description": "DN TaskFlow - Modern Desktop Task & Workspace Platform",
+  "author": "DN TaskFlow <contact@drunall.com>",
+  "main": "dist-electron/main.cjs",
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
     "preview": "vite preview",
-    "clean": "rm -rf dist server.js",
+    "clean": "rm -rf dist dist-electron release",
     "lint": "tsc --noEmit",
-    "electron:dev": "vite --port=3000",
-    "electron:build": "vite build"
+    "build:electron": "node build-electron.js",
+    "build:all": "npm run build && npm run build:electron",
+    "dist:win": "npm run build:all && electron-builder --win",
+    "dist:portable": "npm run build:all && electron-builder --win portable",
+    "dist:dir": "npm run build:all && electron-builder --dir",
+    "electron:build": "node scripts/electron-build.js"
   },
-  "dependencies": {
+  "build": {
+    "appId": "com.drunall.taskflow",
+    "productName": "DN TaskFlow",
+    "electronVersion": "34.0.0",
+    "copyright": "Copyright © 2026 DN TaskFlow",
+    "npmRebuild": false,
+    "nodeGypRebuild": false,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "public/icon.png",
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "DN TaskFlow"
+    }
+  },
+  "dependencies": {},
+  "devDependencies": {
     "@google/genai": "^2.4.0",
     "@tailwindcss/vite": "^4.3.3",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
+    "autoprefixer": "^10.4.21",
     "dotenv": "^17.2.3",
+    "esbuild": "^0.28.2",
     "express": "^4.21.2",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
-    "vite": "^8.3.0",
-    "zustand": "^5.1.0"
-  },
-  "devDependencies": {
-    "@types/node": "^22.14.0",
-    "@types/react": "^19.3.0",
-    "@types/react-dom": "^19.3.0",
-    "autoprefixer": "^10.4.21",
-    "esbuild": "^0.25.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
     "typescript": "^7.0.2",
-    "@types/express": "^4.17.21"
+    "vite": "^8.3.0",
+    "zustand": "^5.1.0"
+  },
+  "allowScripts": {
+    "@google/genai@2.32.0": true,
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.2": true,
+    "protobufjs@7.6.6": true
   }
 }

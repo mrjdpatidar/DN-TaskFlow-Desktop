@@ -1,0 +1,63 @@
+{
+  "version": "1.0.4",
+  "name": "DN TaskFlow 1.0.4",
+  "notes": "⚡ DN TaskFlow v1.0.4 Production Release with new features and performance enhancements.",
+  "pub_date": "2026-11-13T12:44:12.905Z",
+  "url": "https://app.drunall.com/taskflow/downloads/DN%20TaskFlow-Setup-1.0.4.exe",
+  "filename": "DN TaskFlow-Setup-1.0.4.exe",
+  "size": "84.5 MB",
+  "size_bytes": 88606746,
+  "sha256": "8d9fccd8a6d97f7caa29d6916183d08cd3105fdfe1584bdaa07b0d68f768e1bd",
+  "mandatory": false,
+  "min_os_version": "10.0.0",
+  "releases": [
+    {
+      "version": "1.0.4",
+      "name": "DN TaskFlow 1.0.4",
+      "notes": "⚡ DN TaskFlow v1.0.4 Production Release with new features and performance enhancements.",
+      "pub_date": "2026-11-13T12:44:12.905Z",
+      "url": "https://app.drunall.com/taskflow/downloads/DN%20TaskFlow-Setup-1.0.4.exe",
+      "filename": "DN TaskFlow-Setup-1.0.4.exe",
+      "size": "84.5 MB",
+      "size_bytes": 88606746,
+      "sha256": "8d9fccd8a6d97f7caa29d6916183d08cd3105fdfe1584bdaa07b0d68f768e1bd",
+      "mandatory": false,
+      "min_os_version": "10.0.0"
+    },
+    {
+      "version": "1.0.3",
+      "name": "DN TaskFlow 1.0.3",
+      "notes": "⚡ DN TaskFlow v1.0.3 Production Release with new features and performance enhancements.",
+      "pub_date": "2026-11-13T12:43:00.894Z",
+      "url": "https://app.drunall.com/taskflow/downloads/DN%20TaskFlow-Setup-1.0.3.exe",
+      "filename": "DN TaskFlow-Setup-1.0.3.exe",
+      "size": "84.5 MB",
+      "size_bytes": 88606657,
+      "sha256": "8173ea111ee56e9d1cb5f76da11aa834cac8381d5964fe734733c0c51fbe46c2",
+      "mandatory": false,
+      "min_os_version": "10.0.0"
+    },
+    {
+      "version": "1.0.2",
+      "name": "DN TaskFlow 1.0.2",
+      "notes": "⚡ DN TaskFlow v1.0.2 Production Release with new features and performance enhancements.",
+      "pub_date": "2026-11-13T11:30:21.307Z",
+      "url": "https://app.drunall.com/taskflow/downloads/DN%20TaskFlow-Setup-1.0.2.exe",
+      "filename": "DN TaskFlow-Setup-1.0.2.exe",
+      "size": "84.5 MB",
+      "size_bytes": 88605032,
+      "sha256": "59a7fb3687de22c7e4762443f72ee4e92427e5df061f83898d07d80b9f2431fa",
+      "mandatory": false,
+      "min_os_version": "10.0.0"
+    },
+    {
+      "version": "1.0.1",
+      "name": "TaskFlow 1.0.1 Production",
+      "notes": "⚡ Production Release: In-App Updates, Hostinger PHP OTP Mailer, SuperAdmin Panel, Audit Logs, and Email Privacy Settings.",
+      "pub_date": "2026-11-13T10:00:00Z",
+      "url": "https://app.drunall.com/taskflow/downloads/DN%20TaskFlow-Setup-1.0.1.exe",
+      "mandatory": false,
+      "min_os_version": "10.0.0"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 /**
- * Cryptographic utility service for TaskFlow Desktop
+ * Cryptographic utility service for TaskFlow
  * Uses Web Crypto API (SHA-256) for zero-dependency secure password hashing & verification.
  * Strictly adheres to requirement: Never store plaintext passwords.
  */

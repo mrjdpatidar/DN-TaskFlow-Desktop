@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTaskFlowStore } from '../../stores/useTaskFlowStore';
 import { Task, TaskStatus, TaskPriority } from '../../types';
 import { StatusBadge } from '../common/StatusBadge';
+import { useConfirmModal } from '../common/ConfirmModal';
 import { PriorityIcon } from '../common/PriorityIcon';
 import { Avatar } from '../common/Avatar';
 import {
@@ -23,6 +24,7 @@ export const TaskListView: React.FC<{ filterMode?: 'all' | 'my' | 'overdue' }> =
   const {
     tasks,
     projects,
+    organizations,
     users,
     currentOrgId,
     currentUserId,
@@ -42,6 +44,13 @@ export const TaskListView: React.FC<{ filterMode?: 'all' | 'my' | 'overdue' }> =
     sortOrder,
     toggleSortOrder,
   } = useTaskFlowStore();
+
+  const { confirmAction } = useConfirmModal();
+
+  const currentOrg = organizations.find((o) => o.id === currentOrgId);
+  const currentMember = currentOrg?.members.find((m) => m.userId === currentUserId);
+  const currentUser = users.find((u) => u.id === currentUserId);
+  const isOwnerOrAdmin = currentMember?.role === 'owner' || currentMember?.role === 'admin' || currentUser?.isSuperAdmin;
 
   const orgTasks = tasks.filter((t) => {
     if (t.organizationId !== currentOrgId || t.isArchived) return false;
@@ -82,6 +91,24 @@ export const TaskListView: React.FC<{ filterMode?: 'all' | 'my' | 'overdue' }> =
     return sortOrder === 'asc' ? comp : -comp;
   });
 
+  // Helper for human-friendly dates
+  const formatHumanDueDate = (dateStr?: string) => {
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const target = new Date(d);
+    target.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Tomorrow';
+    if (diffDays === -1) return 'Yesterday';
+    if (diffDays > 1 && diffDays < 7) {
+      return `This ${d.toLocaleDateString([], { weekday: 'short' })}`;
+    }
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  };
+
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden select-none">
       {/* Search & Filter Strip */}
@@ -109,9 +136,12 @@ export const TaskListView: React.FC<{ filterMode?: 'all' | 'my' | 'overdue' }> =
               <option value="all">All Statuses</option>
               <option value="todo">To Do</option>
               <option value="in_progress">In Progress</option>
-              <option value="in_review">In Review</option>
-              <option value="blocked">Blocked</option>
+              <option value="on_hold">On Hold</option>
+              <option value="in_review">Ready for Review</option>
+              <option value="changes_requested">Changes Requested</option>
+              <option value="ready_for_deployment">Ready for Deployment</option>
               <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
             </select>
           )}
 
@@ -138,7 +168,7 @@ export const TaskListView: React.FC<{ filterMode?: 'all' | 'my' | 'overdue' }> =
 
           <button
             onClick={() => setCreateTaskOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-xs transition-colors whitespace-nowrap"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-xs transition-colors whitespace-nowrap"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Add Task</span>
@@ -171,7 +201,25 @@ export const TaskListView: React.FC<{ filterMode?: 'all' | 'my' | 'overdue' }> =
                   task.status !== 'completed' &&
                   new Date(task.dueDate).getTime() < Date.now();
 
-                return (
+                // Helper for human-friendly dates
+  const formatHumanDueDate = (dateStr?: string) => {
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const target = new Date(d);
+    target.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Tomorrow';
+    if (diffDays === -1) return 'Yesterday';
+    if (diffDays > 1 && diffDays < 7) {
+      return `This ${d.toLocaleDateString([], { weekday: 'short' })}`;
+    }
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  };
+
+  return (
                   <tr
                     key={task.id}
                     onClick={() => setActiveTaskId(task.id)}
@@ -208,7 +256,7 @@ export const TaskListView: React.FC<{ filterMode?: 'all' | 'my' | 'overdue' }> =
 
                     {/* Title */}
                     <td className="py-3 px-4 max-w-md">
-                      <div className="font-semibold text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">
+                      <div className="font-semibold text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">
                         {task.title}
                       </div>
                       {task.labels.length > 0 && (
@@ -243,6 +291,7 @@ export const TaskListView: React.FC<{ filterMode?: 'all' | 'my' | 'overdue' }> =
                             key={u.id}
                             name={u.name}
                             avatarUrl={u.avatar}
+                            avatarPreset={u.avatarPreset}
                             size="xs"
                           />
                         ))}
@@ -262,7 +311,7 @@ export const TaskListView: React.FC<{ filterMode?: 'all' | 'my' | 'overdue' }> =
                         >
                           {isOverdue && <AlertTriangle className="w-3.5 h-3.5 shrink-0" />}
                           <Calendar className="w-3 h-3 text-slate-400" />
-                          <span>{new Date(task.dueDate).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                          <span>{formatHumanDueDate(task.dueDate)}</span>
                         </div>
                       ) : (
                         <span className="text-slate-400">—</span>
@@ -271,13 +320,25 @@ export const TaskListView: React.FC<{ filterMode?: 'all' | 'my' | 'overdue' }> =
 
                     {/* Actions */}
                     <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        onClick={() => deleteTask(task.id)}
-                        title="Delete Task"
-                        className="p-1 text-slate-400 hover:text-rose-500 transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {isOwnerOrAdmin || task.createdBy === currentUserId ? (
+                        <button
+                          onClick={() => {
+                            confirmAction({
+                              title: `Delete Task "${task.title}"?`,
+                              message: `Are you sure you want to delete this task? All attached deliverables, discussions, and time logs will be permanently removed.`,
+                              confirmText: 'Delete Task',
+                              variant: 'danger',
+                              onConfirm: () => deleteTask(task.id),
+                            });
+                          }}
+                          title="Delete Task"
+                          className="p-1 text-slate-400 hover:text-rose-500 rounded hover:bg-rose-500/10 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      ) : (
+                        <span className="text-[10px] text-slate-400 italic">Protected</span>
+                      )}
                     </td>
                   </tr>
                 );
@@ -285,8 +346,42 @@ export const TaskListView: React.FC<{ filterMode?: 'all' | 'my' | 'overdue' }> =
 
               {sortedTasks.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400 italic">
-                    No tasks found matching your filter criteria.
+                  <td colSpan={8} className="py-16 text-center">
+                    <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
+                      <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center mb-3">
+                        <CheckCircle2 className="w-6 h-6 stroke-[1.5]" />
+                      </div>
+                      <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                        {searchQuery || statusFilter !== 'all' || priorityFilter !== 'all'
+                          ? 'No matching tasks'
+                          : 'No tasks here yet'}
+                      </h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 mb-4 text-center">
+                        {searchQuery || statusFilter !== 'all' || priorityFilter !== 'all'
+                          ? 'Try clearing your search query or filters to see all tasks.'
+                          : 'Get started by creating your team\'s first task.'}
+                      </p>
+                      {searchQuery || statusFilter !== 'all' || priorityFilter !== 'all' ? (
+                        <button
+                          onClick={() => {
+                            setSearchQuery('');
+                            setStatusFilter('all');
+                            setPriorityFilter('all');
+                          }}
+                          className="px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-xl transition-colors"
+                        >
+                          Clear filters
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setCreateTaskOpen(true)}
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-xs transition-colors"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Create task</span>
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               )}

@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   Trash2,
   AlertTriangle,
+  CheckSquare,
 } from 'lucide-react';
 
 export const TaskListView: React.FC<{ filterMode?: 'all' | 'my' | 'overdue' }> = ({
@@ -259,11 +260,21 @@ export const TaskListView: React.FC<{ filterMode?: 'all' | 'my' | 'overdue' }> =
                       <div className="font-semibold text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">
                         {task.title}
                       </div>
-                      {task.labels.length > 0 && (
-                        <div className="text-[11px] text-slate-400 mt-0.5 truncate">
-                          {task.labels.join(' · ')}
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {task.labels.length > 0 && (
+                          <div className="text-[11px] text-slate-400 truncate">
+                            {task.labels.join(' · ')}
+                          </div>
+                        )}
+                        {task.checklists && task.checklists.length > 0 && (
+                          <div className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-mono">
+                            <CheckSquare className="w-3 h-3 shrink-0" />
+                            <span>
+                              {task.checklists.filter((c) => c.completed).length}/{task.checklists.length}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </td>
 
                     {/* Project */}

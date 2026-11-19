@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useTaskFlowStore } from '../../stores/useTaskFlowStore';
-import { TaskStatus, TaskPriority, TaskAttachment } from '../../types';
+import { TaskStatus, TaskPriority, TaskAttachment, TaskChecklistItem } from '../../types';
+import { playNotificationSound } from '../../services/audio';
 import { Avatar } from '../common/Avatar';
 import { StatusBadge, getStatusConfig } from '../common/StatusBadge';
 import { PriorityIcon, getPriorityConfig } from '../common/PriorityIcon';
@@ -66,6 +67,9 @@ export const TaskDetailModal: React.FC = () => {
     currentUserId,
     currentOrgId,
     organizations,
+    logActivity,
+    notifyUsers,
+    preferences,
   } = useTaskFlowStore();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -89,6 +93,8 @@ export const TaskDetailModal: React.FC = () => {
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isAssigneePickerOpen, setIsAssigneePickerOpen] = useState(false);
   const [assigneeSearchQuery, setAssigneeSearchQuery] = useState('');
+  const [newChecklistDraft, setNewChecklistDraft] = useState('');
+  const [isAddingSubtask, setIsAddingSubtask] = useState(false);
 
   const { confirmAction } = useConfirmModal();
 
@@ -168,6 +174,84 @@ export const TaskDetailModal: React.FC = () => {
   };
 
   const canManageAssignees = isOwnerOrAdmin || isTaskOwner;
+
+  const handleToggleChecklist = (checkId: string) => {
+    const currentChecklists = task.checklists || [];
+    const targetItem = currentChecklists.find((c) => c.id === checkId);
+    if (!targetItem) return;
+
+    const nextStatus = !targetItem.completed;
+    const updated = currentChecklists.map((c) =>
+      c.id === checkId ? { ...c, completed: nextStatus } : c
+    );
+
+    updateTask(task.id, { checklists: updated });
+
+    const total = updated.length;
+    const completed = updated.filter((c) => c.completed).length;
+
+    // Log Activity
+    logActivity(
+      'updated',
+      `${nextStatus ? 'completed' : 'reopened'} subtask "${targetItem.text}" in "${task.title}" (${completed}/${total})`,
+      task.id,
+      task.projectId
+    );
+
+    // Prepare notifications for task team
+    const notifTitle = nextStatus ? 'Subtask Completed ✅' : 'Subtask Reopened 🔄';
+    const notifMsg = `"${targetItem.text}" in "${task.title}" was marked as ${
+      nextStatus ? 'completed' : 'pending'
+    } by ${currentUser?.name || 'team member'} (${completed}/${total} completed).`;
+
+    // Notify task creator, assignees, and current user
+    const recipientIds = Array.from(
+      new Set(
+        [
+          task.createdBy,
+          ...(task.assignedTo || []),
+          ...(currentUserId ? [currentUserId] : []),
+        ].filter(Boolean)
+      )
+    );
+
+    notifyUsers(recipientIds, notifTitle, notifMsg, task.id, 'due_soon');
+
+    // Play notification chime for instant feedback
+    if (preferences.soundEnabled) {
+      playNotificationSound();
+    }
+  };
+
+  const handleAddSubtask = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!newChecklistDraft.trim()) return;
+    const currentChecklists = task.checklists || [];
+    const newItem: TaskChecklistItem = {
+      id: 'chk_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+      text: newChecklistDraft.trim(),
+      completed: false,
+    };
+    const updated = [...currentChecklists, newItem];
+    updateTask(task.id, { checklists: updated });
+    setNewChecklistDraft('');
+    logActivity('updated', `added subtask "${newItem.text}" to "${task.title}"`, task.id, task.projectId);
+  };
+
+  const handleDeleteSubtask = (checkId: string) => {
+    const currentChecklists = task.checklists || [];
+    const itemToDelete = currentChecklists.find((c) => c.id === checkId);
+    confirmAction({
+      title: 'Delete Subtask?',
+      message: `Are you sure you want to delete subtask "${itemToDelete?.text || ''}"?`,
+      confirmText: 'Delete Subtask',
+      variant: 'danger',
+      onConfirm: () => {
+        const updated = currentChecklists.filter((c) => c.id !== checkId);
+        updateTask(task.id, { checklists: updated });
+      },
+    });
+  };
 
   const handleSaveDescription = () => {
     updateTask(task.id, { description: descDraft });
@@ -739,6 +823,120 @@ export const TaskDetailModal: React.FC = () => {
                   </span>
                 )}
               </div>
+            )}
+          </div>
+
+          {/* Subtasks & Checklists Section */}
+          <div className="bg-white dark:bg-[#131b2e] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
+                  <CheckSquare className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Subtasks & Checklists</span>
+                </span>
+                {task.checklists && task.checklists.length > 0 && (
+                  <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold border border-emerald-500/20">
+                    {task.checklists.filter((c) => c.completed).length} of {task.checklists.length} done
+                  </span>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsAddingSubtask(!isAddingSubtask)}
+                className="text-[11px] text-blue-500 hover:underline flex items-center gap-1 font-medium cursor-pointer"
+              >
+                <Plus className="w-3 h-3" />
+                <span>{isAddingSubtask ? 'Close' : 'Add Subtask'}</span>
+              </button>
+            </div>
+
+            {/* Progress Bar */}
+            {task.checklists && task.checklists.length > 0 && (
+              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                <div
+                  className="bg-emerald-500 h-1.5 rounded-full transition-all duration-300"
+                  style={{
+                    width: `${Math.round(
+                      (task.checklists.filter((c) => c.completed).length / task.checklists.length) * 100
+                    )}%`,
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Checklist items */}
+            <div className="space-y-1.5">
+              {(task.checklists || []).map((chk) => (
+                <div
+                  key={chk.id}
+                  className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 text-xs group transition-colors hover:bg-slate-100/80 dark:hover:bg-slate-800"
+                >
+                  <label className="flex items-center gap-2.5 cursor-pointer flex-1 min-w-0 select-none">
+                    <input
+                      type="checkbox"
+                      checked={chk.completed}
+                      onChange={() => handleToggleChecklist(chk.id)}
+                      className="w-4 h-4 accent-emerald-600 rounded cursor-pointer"
+                    />
+                    <span
+                      className={`truncate transition-all ${
+                        chk.completed
+                          ? 'line-through text-slate-400 dark:text-slate-500'
+                          : 'text-slate-800 dark:text-slate-200 font-medium'
+                      }`}
+                    >
+                      {chk.text}
+                    </span>
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteSubtask(chk.id)}
+                    className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-500 p-1 rounded hover:bg-rose-500/10 transition-all cursor-pointer"
+                    title="Delete subtask"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+
+              {(!task.checklists || task.checklists.length === 0) && !isAddingSubtask && (
+                <p className="text-xs text-slate-400 italic py-1">
+                  No subtasks added yet. Click &quot;Add Subtask&quot; to break this task down into checklist points.
+                </p>
+              )}
+            </div>
+
+            {/* Add Subtask Input Form */}
+            {isAddingSubtask && (
+              <form onSubmit={handleAddSubtask} className="flex gap-2 pt-1 animate-in fade-in duration-100">
+                <input
+                  type="text"
+                  value={newChecklistDraft}
+                  onChange={(e) => setNewChecklistDraft(e.target.value)}
+                  placeholder="Enter subtask or checklist point..."
+                  autoFocus
+                  className="flex-1 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500"
+                />
+                <button
+                  type="submit"
+                  disabled={!newChecklistDraft.trim()}
+                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-xs font-semibold rounded-xl text-white shadow-xs transition-colors cursor-pointer"
+                >
+                  Add
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAddingSubtask(false);
+                    setNewChecklistDraft('');
+                  }}
+                  className="px-2.5 py-1.5 text-xs text-slate-500 hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </form>
             )}
           </div>
 

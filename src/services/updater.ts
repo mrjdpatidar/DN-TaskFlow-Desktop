@@ -6,7 +6,9 @@
 
 import { AppUpdateInfo } from '../types';
 
-export const CURRENT_APP_VERSION = '1.0.2';
+declare const __APP_VERSION__: string | undefined;
+
+export const CURRENT_APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.5';
 export const UPDATE_MANIFEST_URL = 'https://app.drunall.com/taskflow/downloads/version.json';
 export const DIRECT_EXE_DOWNLOAD_URL = 'https://app.drunall.com/taskflow/downloads/DN%20TaskFlow-Setup.exe';
 

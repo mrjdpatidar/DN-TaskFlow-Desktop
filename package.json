@@ -1,7 +1,7 @@
 {
   "name": "dn-taskflow",
   "private": true,
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "DN TaskFlow - Modern Desktop Task & Workspace Platform",
   "author": "DN TaskFlow <contact@drunall.com>",
   "main": "dist-electron/main.cjs",

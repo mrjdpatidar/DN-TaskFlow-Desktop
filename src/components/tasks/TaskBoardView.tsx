@@ -17,6 +17,7 @@ import {
   AlertTriangle,
   X,
   FolderKanban,
+  CheckSquare,
 } from 'lucide-react';
 
 const COLUMNS: { id: TaskStatus; label: string; accentColor: string; dotColor: string }[] = [
@@ -352,6 +353,18 @@ export const TaskBoardView: React.FC = () => {
                             <div className="flex items-center gap-0.5" title="Attachments">
                               <Paperclip className="w-3 h-3" />
                               <span className="tabular-nums">{task.attachments.length}</span>
+                            </div>
+                          )}
+
+                          {task.checklists && task.checklists.length > 0 && (
+                            <div
+                              className="flex items-center gap-1 text-[10px] font-mono text-slate-500 dark:text-slate-400"
+                              title={`Subtasks: ${task.checklists.filter((c) => c.completed).length} of ${task.checklists.length} completed`}
+                            >
+                              <CheckSquare className="w-3 h-3 text-emerald-500 shrink-0" />
+                              <span className="tabular-nums">
+                                {task.checklists.filter((c) => c.completed).length}/{task.checklists.length}
+                              </span>
                             </div>
                           )}
 
